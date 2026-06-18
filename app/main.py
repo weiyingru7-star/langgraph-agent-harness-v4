@@ -2,7 +2,7 @@
 LangGraph 电商客服 Agent Harness V4-lite
 
 项目入口：构建并运行 LangGraph 状态流转流程。
-Phase 5.2：Skill / Tool / Policy 集成演示。
+Phase 6.2：回复生成演示。
 """
 
 import json
@@ -39,13 +39,15 @@ def _show_highlights(state):
     print(f"  → need_human     = {state['need_human']}")
     if state["human_reason"]:
         print(f"  → human_reason   = {state['human_reason']}")
+    reply = state["reply"]
+    print(f"  → reply (前80字) = {reply[:80] + '…' if reply and len(reply) > 80 else reply}")
 
 
 def main():
     """主入口：循环运行 7 个 demo 并输出完整 JSON state。"""
     print("=" * 60)
     print("LangGraph Customer Service Agent")
-    print("版本: V4-lite | Phase 5.2")
+    print("版本: V4-lite | Phase 6.2")
     print("=" * 60)
 
     for demo in _DEMOS:

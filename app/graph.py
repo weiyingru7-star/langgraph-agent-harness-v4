@@ -1,11 +1,11 @@
 """
 graph.py — LangGraph 图定义
 
-构建完整的 LangGraph StateGraph，包含 9 个线性节点：
+构建完整的 LangGraph StateGraph，包含 10 个线性节点：
   START → parse_input → decide_modality → analyze_text
        → classify_intent → classify_emotion → classify_stage
        → route_to_skill → escalation_check
-       → save_log → END
+       → generate_reply → save_log → END
 
 提供 build_graph() 和 run_graph() 两个入口函数。
 """
@@ -18,6 +18,7 @@ from app.nodes.classify_intent import classify_intent
 from app.nodes.classify_stage import classify_stage
 from app.nodes.decide_modality import decide_modality
 from app.nodes.escalation_check import escalation_check
+from app.nodes.generate_reply import generate_reply
 from app.nodes.parse_input import parse_input
 from app.nodes.route_to_skill import route_to_skill
 from app.nodes.save_log import save_log
@@ -27,7 +28,7 @@ from app.state.customer_state import CustomerServiceState
 def build_graph():
     graph = StateGraph(CustomerServiceState)
 
-    # 注册 9 个节点
+    # 注册 10 个节点
     graph.add_node("parse_input", parse_input)
     graph.add_node("decide_modality", decide_modality)
     graph.add_node("analyze_text", analyze_text)
@@ -36,11 +37,12 @@ def build_graph():
     graph.add_node("classify_stage", classify_stage)
     graph.add_node("route_to_skill", route_to_skill)
     graph.add_node("escalation_check", escalation_check)
+    graph.add_node("generate_reply", generate_reply)
     graph.add_node("save_log", save_log)
 
     graph.set_entry_point("parse_input")
 
-    # 线性边（Phase 5 不做条件路由）
+    # 线性边（Phase 6 不做条件路由）
     graph.add_edge("parse_input", "decide_modality")
     graph.add_edge("decide_modality", "analyze_text")
     graph.add_edge("analyze_text", "classify_intent")
@@ -48,7 +50,8 @@ def build_graph():
     graph.add_edge("classify_emotion", "classify_stage")
     graph.add_edge("classify_stage", "route_to_skill")
     graph.add_edge("route_to_skill", "escalation_check")
-    graph.add_edge("escalation_check", "save_log")
+    graph.add_edge("escalation_check", "generate_reply")
+    graph.add_edge("generate_reply", "save_log")
     graph.add_edge("save_log", END)
 
     return graph.compile()
