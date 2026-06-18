@@ -98,16 +98,18 @@ class TestGenerateReplyWithLLM:
     """generate_reply 在 LLM 开关下的行为测试。"""
 
     def test_llm_off_by_default(self):
-        """LLM_ENABLE_REPLY_POLISH=false 时行为和原来一致。"""
-        from app.nodes.generate_reply import generate_reply
-        from app.state.customer_state import create_initial_state
+        """当 LLM_ENABLE_REPLY_POLISH 未启用时行为正常。"""
+        import os
+        import pytest as _pytest
+        if os.environ.get("LLM_ENABLE_REPLY_POLISH") == "true":
+            _pytest.skip("跳过：当前环境 LLM 已启用")
         from app.graph import run_graph
+        from app.state.customer_state import create_initial_state
 
         state = run_graph(create_initial_state(
             session_id="llm-off", user_message="这个衣服是什么材质",
         ))
         assert state["reply"] is not None
-        # 不应包含 LLM 相关的日志标记
         logs_str = str(state.get("logs", []))
         assert "llm_used" not in logs_str
 
