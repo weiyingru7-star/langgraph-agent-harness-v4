@@ -54,7 +54,10 @@ class TestSkillRouting:
         assert state["intent"] == "product_question"
         assert state["selected_skill"] == "product_qa_skill"
         assert state["skill_result"]["action"] == "product_answer"
-        assert "product_info" in state["skill_result"]
+        # 可能是本地知识库命中（matched_faq / matched_product）或 mock 回退（product_info）
+        sr = state["skill_result"]
+        has_data = any(k in sr for k in ["matched_faq", "matched_product", "product_info"])
+        assert has_data, f"skill_result 缺少商品/FAQ 数据: {sr}"
         assert state["need_human"] is False
 
     def test_human_request(self):
