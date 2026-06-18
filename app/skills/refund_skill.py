@@ -1,26 +1,22 @@
 """
 refund_skill.py — 退款处理技能
 
-职责: 执行退款流程，包括查询退款政策、计算退款金额等。
+职责：处理退款请求，根据 policy_decision 执行挽留或退款。
+       policy_decision 由 route_to_skill 在调用本技能之前写入 state。
 """
 
-from app.state.customer_state import CustomerServiceState
 
-
-def execute(state: CustomerServiceState) -> CustomerServiceState:
-    """
-    执行退款处理技能。
-
-    Args:
-        state: 当前状态
-
-    Returns:
-        更新后的状态（包含 skill_result）
-    """
-    # TODO: 后续阶段实现退款处理逻辑
-    state.skill_result = {
-        "skill": "refund",
-        "status": "pending",
+def run_refund_skill(state: dict) -> dict:
+    """执行退款处理，基于 refund_policy 的决策结果。"""
+    decision = state["policy_decision"]
+    messages = {
+        "retention": "首次退款，先进入挽留流程",
+        "refund_workflow": "二次明确退款，进入退款流程",
+        "direct_refund_or_human_confirm": "多次退款请求，建议直接退款或人工确认",
     }
-
-    return state
+    return {
+        "skill_result": {
+            "action": decision,
+            "message": messages.get(decision, "退款请求已处理"),
+        }
+    }

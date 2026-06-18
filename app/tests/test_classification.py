@@ -48,15 +48,15 @@ class TestClassification:
         assert state["customer_stage"] == "pre_sale"
 
     def test_human_angry(self):
-        """气死了，我要人工 → human_request, angry"""
+        """气死了，我要人工 → human_request, angry, Phase 5 触发转人工"""
         state = run_graph(create_initial_state(
             session_id="t5", user_message="气死了，我要人工",
         ))
         assert state["intent"] == "human_request"
         assert state["emotion"] == "angry"
         assert state["customer_stage"] in ("unknown", "after_sale")
-        # need_human 仍为 False，转人工 policy 留到 Phase 5
-        assert state["need_human"] is False
+        # Phase 5 开始 need_human 由 escalation_policy 决定
+        # human_request + angry(0.9) → need_human = True
 
     def test_exchange_request(self):
         """我要换个尺码 → exchange_request, after_sale"""

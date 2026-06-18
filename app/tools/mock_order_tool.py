@@ -1,25 +1,17 @@
 """
-mock_order_tool.py — Mock 订单查询工具
+mock_order_tool.py — 订单查询 Mock
 
-职责: 模拟查询外部电商系统的订单数据。
-      第一版不接真实 API，返回 mock 数据。
+职责：模拟查询外部电商系统的订单数据。第一版不接真实 API。
+      Tool 只负责提供外部数据，不负责业务决策。
 """
 
 
-def query_order(order_id: str) -> dict:
-    """
-    模拟查询订单信息。
-
-    Args:
-        order_id: 订单号
-
-    Returns:
-        模拟的订单数据
-    """
-    # TODO: 后续阶段丰富 mock 数据
+def get_mock_order_info() -> dict:
+    """返回 mock 订单和物流信息，用于物流查询。"""
     return {
-        "order_id": order_id,
-        "status": "shipped",
-        "amount": 100.0,
-        "message": "订单查询成功（mock 数据）",
+        "order_id": "ORD-20240101-001",
+        "status": "已发货",
+        "tracking_no": "SF1234567890",
+        "eta": "预计明天到达",
+        "items": [{"name": "经典款运动鞋", "quantity": 1}],
     }

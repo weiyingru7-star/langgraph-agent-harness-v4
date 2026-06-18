@@ -1,26 +1,20 @@
 """
 logistics_skill.py — 物流查询技能
 
-职责: 查询订单物流信息，包括配送状态、预计到达时间等。
+职责：查询 mock 物流信息。
+      调用 mock_order_tool 获取订单和物流数据。
 """
 
-from app.state.customer_state import CustomerServiceState
+from app.tools.mock_order_tool import get_mock_order_info
 
 
-def execute(state: CustomerServiceState) -> CustomerServiceState:
-    """
-    执行物流查询技能。
-
-    Args:
-        state: 当前状态
-
-    Returns:
-        更新后的状态（包含 skill_result）
-    """
-    # TODO: 后续阶段实现物流查询逻辑
-    state.skill_result = {
-        "skill": "logistics",
-        "status": "pending",
+def run_logistics_skill(state: dict) -> dict:
+    """查询 mock 物流信息。"""
+    order = get_mock_order_info()
+    return {
+        "skill_result": {
+            "action": "logistics_query",
+            "order_info": order,
+            "message": "已查询 mock 物流信息",
+        }
     }
-
-    return state

@@ -1,26 +1,16 @@
 """
 exchange_skill.py — 换货处理技能
 
-职责: 处理用户换货请求，包括换货条件检查、库存确认等。
+职责：处理换货请求，记录换货信息。
 """
 
-from app.state.customer_state import CustomerServiceState
 
-
-def execute(state: CustomerServiceState) -> CustomerServiceState:
-    """
-    执行换货处理技能。
-
-    Args:
-        state: 当前状态
-
-    Returns:
-        更新后的状态（包含 skill_result）
-    """
-    # TODO: 后续阶段实现换货处理逻辑
-    state.skill_result = {
-        "skill": "exchange",
-        "status": "pending",
+def run_exchange_skill(state: dict) -> dict:
+    """执行换货处理。"""
+    return {
+        "skill_result": {
+            "action": "exchange_flow",
+            "message": "已进入换货流程",
+            "next_step": "确认尺码/颜色/订单信息",
+        }
     }
-
-    return state

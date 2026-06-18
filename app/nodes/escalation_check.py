@@ -1,36 +1,44 @@
 """
 escalation_check.py — 转人工检查节点
 
-职责: 根据转人工规则判断是否需要将当前会话转接给人工客服。
+职责：调用 escalation_policy 判断是否需要转人工。
+      Phase 5 开始 need_human 由 escalation_policy 决定。
 """
 
+from datetime import datetime
+
+from app.policies.escalation_policy import decide_escalation
 from app.state.customer_state import CustomerServiceState
 
 
-def escalation_check(state: CustomerServiceState) -> CustomerServiceState:
+def escalation_check(state: CustomerServiceState) -> dict:
     """
     检查是否需要转人工。
 
-    转人工条件（在 escalation_policy.py 中定义）:
-        - emotion_score > 0.85
-        - 用户明确要求人工
-        - intent = complaint
-        - errors 不为空
+    读取字段：intent, emotion_score, errors
+    写入字段：need_human, human_reason, logs
 
     Args:
         state: 当前状态
 
     Returns:
-        更新后的状态（包含 need_escalation 字段）
+        包含 need_human, human_reason, logs 的部分 state dict
     """
-    state.stage = "escalation_check"
+    # 调用 escalation_policy 决策
+    policy_result = decide_escalation(state)
 
-    # TODO: 后续阶段调用 escalation_policy 进行判断
-    state.need_escalation = False
-    state.logs.append({
+    updated_logs = list(state["logs"])
+    updated_logs.append({
         "node": "escalation_check",
-        "action": "转人工检查",
-        "need_escalation": state.need_escalation,
+        "summary": (
+            f"need_human={policy_result['need_human']}"
+            + (f", reason={policy_result['human_reason']}" if policy_result['human_reason'] else "")
+        ),
+        "timestamp": datetime.now().strftime("%H:%M:%S"),
     })
 
-    return state
+    return {
+        "need_human": policy_result["need_human"],
+        "human_reason": policy_result["human_reason"],
+        "logs": updated_logs,
+    }

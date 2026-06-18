@@ -1,26 +1,17 @@
 """
-mock_product_tool.py — Mock 商品查询工具
+mock_product_tool.py — 商品查询 Mock
 
-职责: 模拟查询商品信息。
-      第一版不接真实 API，返回 mock 数据。
+职责：模拟查询商品信息。第一版不接真实 API。
+      Tool 只负责提供外部数据，不负责业务决策。
 """
 
 
-def query_product(product_id: str) -> dict:
-    """
-    模拟查询商品信息。
-
-    Args:
-        product_id: 商品 ID
-
-    Returns:
-        模拟的商品数据
-    """
-    # TODO: 后续阶段丰富 mock 数据
+def get_mock_product_info() -> dict:
+    """返回 mock 商品信息，用于商品问答和推荐。"""
     return {
-        "product_id": product_id,
-        "name": "示例商品",
-        "price": 99.9,
-        "stock": 100,
-        "message": "商品查询成功（mock 数据）",
+        "product_name": "经典款运动鞋",
+        "material": "透气网面 + EVA 鞋底",
+        "size": "39-44码可选",
+        "features": ["轻便", "防滑", "透气"],
+        "suitable_scene": "日常跑步、健身、休闲穿着",
     }
