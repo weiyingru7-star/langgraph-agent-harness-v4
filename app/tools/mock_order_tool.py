@@ -1,8 +1,9 @@
 """
-mock_order_tool.py — 订单查询 Mock
+mock_order_tool.py — 订单查询 Mock（Demo Provider）
 
-职责：模拟查询外部电商系统的订单数据。第一版不接真实 API。
-      Tool 只负责提供外部数据，不负责业务决策。
+⚠️ 此文件是 demo/mock 数据提供者，用于 logistics_skill。
+仍被 demo 链路使用，不可直接删除。
+后续可迁移到真实物流 API 或本地 JSON。
 """
 
 

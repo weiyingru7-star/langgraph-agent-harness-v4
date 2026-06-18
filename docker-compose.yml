@@ -1,0 +1,35 @@
+# Docker Compose — LangGraph 电商客服 Agent Harness
+#
+# 启动：
+#   docker compose up --build
+#
+# 访问：
+#   FastAPI: http://localhost:8003/api/health
+#   Next.js: http://localhost:3000
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "8003:8003"
+    environment:
+      - LLM_PROVIDER=${LLM_PROVIDER:-mock}
+      - LLM_ENABLE_REPLY_POLISH=${LLM_ENABLE_REPLY_POLISH:-false}
+      - LLM_ENABLE_SEMANTIC_PARSER=${LLM_ENABLE_SEMANTIC_PARSER:-false}
+      - LLM_ENABLE_RAG_ANSWER=${LLM_ENABLE_RAG_ANSWER:-false}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./data:/app/data
+
+  frontend:
+    build:
+      context: apps/web-next
+    ports:
+      - "3001:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8003
+    depends_on:
+      - backend
