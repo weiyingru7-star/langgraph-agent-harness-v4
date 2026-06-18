@@ -25,6 +25,9 @@ data/app.db
 # Chroma vector store — not committed
 data/chroma/
 
+# Local personal notes — not committed
+local_notes/
+
 # But keep data JSON/MD files
 !data/*.json
 !data/*.md
