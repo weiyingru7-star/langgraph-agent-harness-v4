@@ -227,6 +227,25 @@ export default function Home() {
                 {d.policy_decision && <div style={{ ...styles.item, marginTop: 6 }}><div style={styles.label}>📋 策略</div><div style={styles.value}>{d.policy_decision}</div></div>}
                 <div style={{ ...styles.item, marginTop: 6 }}><div style={styles.label}>👤 转人工</div><div style={{ ...styles.value, color: d.need_human ? "#C62828" : "#2E7D32" }}>{d.need_human ? "是" : "否"}</div></div>
                 {d.human_reason && <p style={{ fontSize: 12, color: "#8896A6", marginTop: 2 }}>{d.human_reason}</p>}
+
+                {/* Semantic Parser */}
+                {(() => {
+                  const st = d.state as Record<string, unknown> | undefined;
+                  const spSrc = st?.intent_source as string | undefined;
+                  const spProd = st?.explicit_product as string | null | undefined;
+                  const spQt = st?.query_type as string | null | undefined;
+                  const spSig = st?.user_signal as string | null | undefined;
+                  if (!spSrc || spSrc === "rule") return null;
+                  return (
+                    <div style={{ marginTop: 6, padding: "6px 10px", background: "#F3E8FF", borderRadius: 8 }}>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: "#7B1FA2", marginBottom: 4 }}>🧠 Semantic Parser</div>
+                      <div style={{ fontSize: 11, color: "#4A148C" }}>来源: {spSrc}</div>
+                      {spProd && <div style={{ fontSize: 11, color: "#4A148C" }}>商品: {spProd}</div>}
+                      {spQt && <div style={{ fontSize: 11, color: "#4A148C" }}>类型: {spQt}</div>}
+                      {spSig && <div style={{ fontSize: 11, color: "#4A148C" }}>信号: {spSig}</div>}
+                    </div>
+                  );
+                })()}
               </>
             ) : (
               <p style={{ color: "#B0BCC9", fontSize: 13, textAlign: "center", padding: "24px 0" }}>发送消息后<br />分析结果在此显示</p>
