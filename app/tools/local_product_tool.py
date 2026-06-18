@@ -1,13 +1,13 @@
 """
 local_product_tool.py — 本地商品知识库查询工具。
 
-从 data/products.json 读取商品资料，通过关键词匹配查询。
+从 data/products.json 读取商品资料，通过名称/别名匹配查询。
 第一版不做 embedding，后续可升级为 Dify / RAG。
 """
 
 import json
 import os
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 _DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "data")
 _PRODUCTS_PATH = os.path.normpath(os.path.join(_DATA_DIR, "products.json"))
@@ -22,76 +22,98 @@ def _load_products() -> list[dict]:
         return []
 
 
-def find_product_by_name(text: str) -> dict:
+def resolve_product(text: str) -> Dict[str, Any]:
     """
-    仅在当前用户输入明确包含商品名时匹配。
+    通用商品解析器：从 products.json 动态匹配商品。
 
-    匹配策略：name 完全包含、category 完全包含、keywords 完全包含。
-    不与 features / scene 匹配，避免误匹配。
+    匹配顺序（只在当前输入中搜索）：
+        1. 完全命中 name
+        2. 完全命中 aliases
+        3. 完全命中 category
 
-    返回：和 query_product 相同结构。
+    不匹配 features / scene，避免误匹配。
+    不依赖代码硬编码商品名。
+
+    Returns:
+        {"matched": True, "matched_product": dict}  |  {"matched": False, ...}
     """
     products = _load_products()
     if not products:
         return {"matched": False, "matched_product": None, "reason": "data_unavailable"}
 
     for product in products:
-        if product["name"] in text or product.get("category", "") in text:
+        # 1. name 完全在输入中
+        if product["name"] in text:
             return {"matched": True, "matched_product": product}
-        for kw in product.get("keywords", []):
-            if kw in text:
+
+        # 2. aliases
+        for alias in product.get("aliases", []):
+            if alias in text:
                 return {"matched": True, "matched_product": product}
+
+        # 3. category
+        if product.get("category", "") in text:
+            return {"matched": True, "matched_product": product}
 
     return {"matched": False, "matched_product": None, "reason": "no_match"}
 
 
-def query_product(text: str) -> Dict[str, Any]:
+def find_product_in_history(history: List[Dict[str, str]]) -> Dict[str, Any]:
     """
-    根据用户输入文本匹配商品。
+    从对话历史中查找最近提到的商品。
 
-    匹配策略（优先顺序）：
-        1. keywords 关键词命中
-        2. name / category 包含
-        3. features / suitable_scene 包含
-
-    Args:
-        text: 用户输入文本
+    遍历 assistant 回复（从最新到最旧），匹配 name / aliases。
 
     Returns:
-        dict: {
-            "matched": bool,
-            "knowledge_source": "local_json",
-            "matched_product": dict | None,
-            "products": list[dict]  # 未精确匹配时返回前 2 个
-        }
+        同上 resolve_product 结构。
+    """
+    products = _load_products()
+    if not products:
+        return {"matched": False, "matched_product": None, "reason": "data_unavailable"}
+
+    for msg in reversed(history):
+        if msg.get("role") != "assistant":
+            continue
+        content = msg.get("content", "")
+        if not content:
+            continue
+        for product in products:
+            if product["name"] in content:
+                return {"matched": True, "matched_product": product}
+            for alias in product.get("aliases", []):
+                if alias in content:
+                    return {"matched": True, "matched_product": product}
+    return {"matched": False, "matched_product": None, "reason": "no_match"}
+
+
+def get_all_products() -> List[dict]:
+    """返回所有商品列表。"""
+    return _load_products()
+
+
+# ══════════════════════════════════════════════
+#  保留向后兼容
+# ══════════════════════════════════════════════
+
+def query_product(text: str) -> Dict[str, Any]:
+    """
+    旧版接口：关键词 + name + category + features 匹配。
+    保留供 query_product 调用方使用。
     """
     products = _load_products()
     if not products:
         return {"matched": False, "knowledge_source": "local_json", "matched_product": None, "reason": "data_unavailable"}
 
-    text_lower = text.lower()
-
-    # 1. 关键词精确匹配
     for product in products:
+        for alias in product.get("aliases", []):
+            if alias in text:
+                return {"matched": True, "knowledge_source": "local_json", "matched_product": product}
+        if product["name"] in text or product.get("category", "") in text:
+            return {"matched": True, "knowledge_source": "local_json", "matched_product": product}
         for kw in product.get("keywords", []):
             if kw in text:
                 return {"matched": True, "knowledge_source": "local_json", "matched_product": product}
 
-    # 2. name / category 包含
-    for product in products:
-        if product["name"] in text or product.get("category", "") in text:
-            return {"matched": True, "knowledge_source": "local_json", "matched_product": product}
-
-    # 3. features / scene 包含
-    for product in products:
-        for feat in product.get("features", []):
-            if feat in text:
-                return {"matched": True, "knowledge_source": "local_json", "matched_product": product}
-        for scene in product.get("suitable_scene", []):
-            if scene in text:
-                return {"matched": True, "knowledge_source": "local_json", "matched_product": product}
-
-    # 未命中：返回前 2 个供参考
     return {
         "matched": False,
         "knowledge_source": "local_json",
@@ -99,3 +121,8 @@ def query_product(text: str) -> Dict[str, Any]:
         "products": products[:2],
         "reason": "no_match",
     }
+
+
+def find_product_by_name(text: str) -> dict:
+    """旧版接口：alias / name / category 匹配。"""
+    return resolve_product(text)

@@ -100,7 +100,7 @@ class TestSkillWithKnowledgeBase:
         ))
         assert state["selected_skill"] == "product_qa_skill"
         r = state["reply"] or ""
-        assert "适合" in r
+        assert "哪款商品" in r or "商品名称" in r or "适合" in r
 
     def test_recommendation_uses_local_products(self):
         state = run_graph(create_initial_state(

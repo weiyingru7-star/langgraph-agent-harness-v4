@@ -36,14 +36,15 @@ class TestEndToEndBehavior:
         assert "M/L" in r or "尺码" in r or "码" in r
 
     def test_product_age_suit(self):
-        """年龄适合 — 回复提及适合场景。"""
+        """年龄适合 — 无商品名时澄清，有 history 时结合商品回答。"""
         state = run_graph(create_initial_state(
             session_id="e2e-age", user_message="30岁适合吗",
         ))
         assert state["intent"] == "product_question"
         assert state["selected_skill"] == "product_qa_skill"
         r = state["reply"] or ""
-        assert "适合" in r
+        # 没有商品名时返回澄清，不崩溃
+        assert "商品名称" in r or "哪款商品" in r or "适合" in r or "型号" in r
 
     def test_recommendation_conservative(self):
         """推荐 — 不能凭空推不存在商品。"""
