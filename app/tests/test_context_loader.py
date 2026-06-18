@@ -1,7 +1,13 @@
 """多轮上下文测试（Phase 10.10）。"""
 
+import os
+import tempfile
+
+from fastapi.testclient import TestClient
+
 from app.graph import run_graph
 from app.memory.conversation_memory import clear_memory
+from app.server import app
 from app.state.customer_state import create_initial_state
 
 
@@ -151,3 +157,76 @@ class TestRefundNotOverridden:
         s2 = run_graph(initial)
         assert s2["selected_skill"] == "complaint_skill"
         assert s2["need_human"] is True
+
+
+class TestImageNotAffected:
+    """纯图片不受历史商品上下文影响。"""
+
+    def setup_method(self):
+        clear_memory()
+
+    def test_image_only_not_affected_by_context(self):
+        """第一轮商品咨询后第二轮纯图片，仍走 image_clarification。"""
+        # 使用独立 session，不触发 memory 回溯
+        initial = create_initial_state(
+            session_id="img-ctx-only",
+            image_url="https://example.com/test.jpg",
+        )
+        # 注入历史（模拟 SQLite 上下文）
+        initial["conversation_history"] = [
+            {"role": "user", "content": "这个衣服是什么材质"},
+            {"role": "assistant", "content": "这款 UPF50+ 轻薄防晒衣的材质信息如下..."},
+        ]
+        s2 = run_graph(initial)
+        assert s2["modality"] == "image_only"
+        assert s2["selected_skill"] is None
+        assert s2["skill_result"]["action"] == "image_clarification"
+
+
+class TestSqliteIntegration:
+    """通过 FastAPI /api/chat 验证 SQLite 路径的 Context Loader。"""
+
+    def setup_method(self):
+        clear_memory()
+
+    def test_two_turn_context_via_sqlite(self):
+        """两轮 /api/chat 调用后，第二轮应读取 SQLite 中的第一轮历史。"""
+        import app.persistence.sqlite_store as store
+        import tempfile, os
+
+        test_db = tempfile.mktemp(suffix=".db")
+        store.init_db(test_db)
+
+        # Patch
+        orig_init = store.init_db
+        orig_save_msg = store.save_message
+        orig_get_msg = store.get_messages
+
+        store.init_db = lambda *a, **kw: orig_init(test_db)
+        store.save_message = lambda *a, **kw: orig_save_msg(*a, **{**kw, "db_path": test_db})
+        store.get_messages = lambda *a, **kw: orig_get_msg(*a, **{**kw, "db_path": test_db})
+
+        store.init_db()
+        client = TestClient(app)
+
+        # 第一轮
+        r1 = client.post("/api/chat", json={
+            "session_id": "sqlite-two", "user_message": "这个衣服是什么材质",
+        })
+        assert r1.status_code == 200
+
+        # 第二轮 — Context Loader 应读取 SQLite 中的历史
+        r2 = client.post("/api/chat", json={
+            "session_id": "sqlite-two", "user_message": "有什么码数",
+        })
+        assert r2.status_code == 200
+        reply = r2.json().get("reply", "")
+        assert "S" in reply or "M" in reply or "XL" in reply or "尺码" in reply
+
+        # 恢复
+        store.init_db = orig_init
+        store.save_message = orig_save_msg
+        store.get_messages = orig_get_msg
+        store.clear_db_for_tests(test_db)
+        if os.path.exists(test_db):
+            os.remove(test_db)
