@@ -7,10 +7,12 @@ provider_factory.py — 根据环境变量选择 LLM Provider。
 import os
 
 from app.llm.base import BaseLLMProvider
+from app.llm.deepseek_provider import DeepSeekProvider
 from app.llm.mock_provider import MockLLMProvider
 
 _PROVIDERS: dict[str, type[BaseLLMProvider]] = {
     "mock": MockLLMProvider,
+    "deepseek": DeepSeekProvider,
 }
 
 
