@@ -7,8 +7,25 @@ product_qa_skill.py — 商品问答技能
 """
 
 from app.tools.local_faq_tool import query_faq
-from app.tools.local_product_tool import query_product
+from app.tools.local_product_tool import query_product, find_product_by_name
 from app.tools.mock_product_tool import get_mock_product_info
+
+
+def _detect_query_type(text: str) -> str:
+    """检测当前问题类型。"""
+    if any(w in text for w in ["码数", "尺码", "码", "大小", "尺寸", "多大", "几码"]):
+        return "size"
+    if any(w in text for w in ["材质", "面料", "什么料", "成分"]):
+        return "material"
+    if any(w in text for w in ["适合", "能穿", "可以穿", "年龄段", "岁"]):
+        return "suitability"
+    if any(w in text for w in ["怎么洗", "洗涤", "保养", "清洗"]):
+        return "care"
+    if any(w in text for w in ["多少钱", "价格", "价位", "贵"]):
+        return "price"
+    if any(w in text for w in ["怎么用", "怎么穿", "怎么安装"]):
+        return "usage"
+    return "general"
 
 
 def _build_reply_from_product(product: dict, text: str) -> str:
@@ -113,8 +130,16 @@ def _find_product_in_history(history: list) -> str | None:
     return None
 
 
-def _enrich_text_with_history(text: str, state: dict) -> str:
-    """如果当前问题是追问，从历史中获取商品名增强文本。"""
+def _maybe_enrich_with_history(text: str, state: dict) -> str:
+    """
+    只有在当前用户消息没有明确提到商品名时，
+    才从 conversation_history 中取最近商品名增强文本。
+    """
+    # 先检查当前消息是否已有明确商品名
+    explicit = find_product_by_name(text)
+    if explicit.get("matched"):
+        return text  # 当前消息已有商品名，不覆盖
+    # 没有明确商品名：尝试从历史推断
     if not any(kw in text for kw in _FOLLOWUP_KEYWORDS):
         return text
     history = state.get("conversation_history", [])
@@ -127,15 +152,49 @@ def _enrich_text_with_history(text: str, state: dict) -> str:
 
 
 def run_product_qa_skill(state: dict) -> dict:
-    """执行商品问答，优先从本地知识库查询。"""
-    text = state.get("user_message", "") or ""
+    """执行商品问答，优先从本地知识库查询。
 
-    # 如果是追问，用历史增强文本
-    text = _enrich_text_with_history(text, state)
+    优先级：
+        1. 当前 user_message 明确包含商品名 → 直接回答该商品
+        2. 从 history 推断商品 + 商品详细
+        3. 从 history 推断商品 + FAQ
+        4. fallback mock
+    """
+    original_text = state.get("user_message", "") or ""
+    query_type = _detect_query_type(original_text)
 
-    # 1. 查 FAQ
+    # ── 第 1 步：当前消息是否明确包含商品名 ──
+    explicit = find_product_by_name(original_text)
+    if explicit.get("matched"):
+        product = explicit["matched_product"]
+        return {
+            "skill_result": {
+                "action": "product_answer",
+                "knowledge_source": "local_products",
+                "matched_product": product,
+                "message": _build_reply_from_product(product, original_text),
+            }
+        }
+
+    # ── 第 2 步：从 history 推断商品 ──
+    enriched = _maybe_enrich_with_history(original_text, state)
+    if enriched != original_text:
+        # history 提供了商品上下文
+        product_result = find_product_by_name(enriched)
+        if product_result.get("matched"):
+            product = product_result["matched_product"]
+            return {
+                "skill_result": {
+                    "action": "product_answer",
+                    "knowledge_source": "local_products",
+                    "matched_product": product,
+                    "message": _build_reply_from_product(product, enriched),
+                }
+            }
+
+    # ── 第 3 步：FAQ ──
     intent = state.get("intent")
-    faq_result = query_faq(text, intent)
+    faq_result = query_faq(original_text, intent)
     if faq_result.get("matched"):
         return {
             "skill_result": {
@@ -146,8 +205,8 @@ def run_product_qa_skill(state: dict) -> dict:
             }
         }
 
-    # 2. 查商品知识库
-    product_result = query_product(text)
+    # ── 第 4 步：商品知识库 ──
+    product_result = query_product(enriched)
     if product_result.get("matched"):
         product = product_result["matched_product"]
         return {
@@ -155,9 +214,9 @@ def run_product_qa_skill(state: dict) -> dict:
                 "action": "product_answer",
                 "knowledge_source": "local_products",
                 "matched_product": product,
-                "message": _build_reply_from_product(product, text),
+                "message": _build_reply_from_product(product, enriched),
             }
         }
 
-    # 3. 回退 mock
-    return _mock_fallback_reply(text)
+    # ── 第 5 步：回退 mock ──
+    return _mock_fallback_reply(enriched)

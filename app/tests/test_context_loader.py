@@ -230,3 +230,68 @@ class TestSqliteIntegration:
         store.clear_db_for_tests(test_db)
         if os.path.exists(test_db):
             os.remove(test_db)
+
+
+class TestExplicitProductPriority:
+    """当前输入明确商品名优先于历史上下文。"""
+
+    def test_explicit_product_beats_history(self):
+        """history 有防晒衣，问"运动外套是什么材质"→ 回答运动外套材质。"""
+        history = [
+            {"role": "user", "content": "这个衣服是什么材质"},
+            {"role": "assistant", "content": "这款 UPF50+ 轻薄防晒衣的材质信息如下："},
+        ]
+        initial = create_initial_state(
+            session_id="fd-explicit", user_message="运动外套是什么材质",
+        )
+        initial["conversation_history"] = history
+        s = run_graph(initial)
+        r = s["reply"] or ""
+        assert "运动外套" in r
+        assert "聚酯纤维" in r  # 运动外套的材质
+        assert "UPF50+" not in r  # 不是防晒衣
+
+    def test_size_query_uses_correct_product(self):
+        """问"运动外套有什么尺码"→ 回答运动外套尺码（M/L/XL/XXL）。"""
+        history = [
+            {"role": "user", "content": "有没有推荐"},
+            {"role": "assistant", "content": "推荐：UPF50+ 轻薄防晒衣、轻量运动外套"},
+        ]
+        initial = create_initial_state(
+            session_id="fd-size", user_message="运动外套有什么尺码",
+        )
+        initial["conversation_history"] = history
+        s = run_graph(initial)
+        r = s["reply"] or ""
+        assert "运动外套" in r
+        assert "M" in r and "XL" in r  # 运动外套尺码 M/L/XL
+        assert "UPF50+" not in r
+
+    def test_history_used_when_no_explicit_product(self):
+        """只说"有什么尺码"（无商品名）时，从历史推断商品。"""
+        history = [
+            {"role": "user", "content": "这个衣服是什么材质"},
+            {"role": "assistant", "content": "这款 UPF50+ 轻薄防晒衣的材质信息如下："},
+        ]
+        initial = create_initial_state(
+            session_id="fd-history", user_message="有什么尺码",
+        )
+        initial["conversation_history"] = history
+        s = run_graph(initial)
+        r = s["reply"] or ""
+        assert "S" in r and "XL" in r  # 防晒衣尺码
+        assert "尺码" in r or "码数" in r or "码" in r
+
+    def test_refund_still_priority(self):
+        """"运动外套质量太差了我要退款" 仍走 refund_skill。"""
+        history = [
+            {"role": "user", "content": "有没有推荐"},
+            {"role": "assistant", "content": "推荐：轻量运动外套"},
+        ]
+        initial = create_initial_state(
+            session_id="fd-refund", user_message="运动外套质量太差了我要退款",
+        )
+        initial["conversation_history"] = history
+        s = run_graph(initial)
+        assert s["selected_skill"] == "refund_skill"
+        assert s["policy_decision"] == "retention"

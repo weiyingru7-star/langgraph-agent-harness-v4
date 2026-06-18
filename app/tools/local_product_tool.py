@@ -22,6 +22,29 @@ def _load_products() -> list[dict]:
         return []
 
 
+def find_product_by_name(text: str) -> dict:
+    """
+    仅在当前用户输入明确包含商品名时匹配。
+
+    匹配策略：name 完全包含、category 完全包含、keywords 完全包含。
+    不与 features / scene 匹配，避免误匹配。
+
+    返回：和 query_product 相同结构。
+    """
+    products = _load_products()
+    if not products:
+        return {"matched": False, "matched_product": None, "reason": "data_unavailable"}
+
+    for product in products:
+        if product["name"] in text or product.get("category", "") in text:
+            return {"matched": True, "matched_product": product}
+        for kw in product.get("keywords", []):
+            if kw in text:
+                return {"matched": True, "matched_product": product}
+
+    return {"matched": False, "matched_product": None, "reason": "no_match"}
+
+
 def query_product(text: str) -> Dict[str, Any]:
     """
     根据用户输入文本匹配商品。
