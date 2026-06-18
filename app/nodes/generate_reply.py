@@ -114,6 +114,8 @@ def _build_reply(state: CustomerServiceState) -> str:
         return _refund_reply(state)
     elif skill == "product_qa_skill":
         return _product_qa_reply(sr)
+    elif skill == "knowledge_qa_skill":
+        return _knowledge_qa_reply(sr)
     elif skill == "recommendation_skill":
         return _recommendation_reply(sr)
     elif skill == "exchange_skill":
@@ -204,6 +206,17 @@ def _product_qa_reply(skill_result: dict) -> str:
         f"适用场景：{scene}\n"
         f"如果您需要了解更多信息，欢迎继续咨询。"
     )
+
+
+def _knowledge_qa_reply(skill_result: dict) -> str:
+    """RAG 知识库问答回复。优先使用 skill 返回的 message。"""
+    msg = skill_result.get("message", "") if skill_result else ""
+    if msg:
+        return msg
+    chunks = skill_result.get("retrieved_chunks", []) if skill_result else []
+    if chunks:
+        return chunks[0].get("text", "暂无检索结果。")
+    return _fallback_reply()
 
 
 def _recommendation_reply(skill_result: dict) -> str:
