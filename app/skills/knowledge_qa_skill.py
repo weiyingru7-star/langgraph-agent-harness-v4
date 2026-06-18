@@ -8,19 +8,24 @@ knowledge_qa_skill.py — 知识库问答技能。
 
 import os
 
-from app.knowledge.rag_provider import RagProvider
+from app.knowledge.provider_factory import get_provider_name, get_rag_provider
 from app.llm.provider_factory import get_llm_provider
 from app.llm.safety import validate_rag_answer
 
-# 全局单例 RagProvider（首次调用时自动构建）
-_rag = RagProvider()
+# 全局单例 Provider（通过 provider_factory 选择）
+_rag = None
 _rag_initialized = False
+_rag_provider_name = ""
 
 
 def _ensure_rag():
-    global _rag_initialized
+    global _rag, _rag_initialized, _rag_provider_name
     if not _rag_initialized:
-        _rag.build_index()
+        _rag = get_rag_provider()
+        _rag_provider_name = get_provider_name()
+        # TF-IDF provider 需要显式构建
+        if _rag_provider_name == "tfidf":
+            _rag.build_index()
         _rag_initialized = True
 
 
@@ -30,12 +35,14 @@ def run_knowledge_qa_skill(state: dict) -> dict:
 
     _ensure_rag()
     result = _rag.retrieve(text, top_k=3)
+    provider_name = result.get("provider", _rag_provider_name)
 
     if not result.get("matched") or not result.get("retrieved_chunks"):
         return {
             "skill_result": {
                 "action": "knowledge_qa",
                 "source": "rag",
+                "rag_provider": provider_name,
                 "success": False,
                 "matched": False,
                 "retrieved_chunks": [],
@@ -60,6 +67,7 @@ def run_knowledge_qa_skill(state: dict) -> dict:
             "skill_result": {
                 "action": "knowledge_qa",
                 "source": "rag",
+                "rag_provider": provider_name,
                 "success": True,
                 "matched": True,
                 "retrieved_chunks": chunks,
@@ -86,6 +94,7 @@ def run_knowledge_qa_skill(state: dict) -> dict:
                     "skill_result": {
                         "action": "knowledge_qa",
                         "source": "rag_llm",
+                        "rag_provider": provider_name,
                         "success": True,
                         "matched": True,
                         "retrieved_chunks": chunks,
@@ -102,6 +111,7 @@ def run_knowledge_qa_skill(state: dict) -> dict:
         "skill_result": {
             "action": "knowledge_qa",
             "source": "rag",
+            "rag_provider": provider_name,
             "success": True,
             "matched": True,
             "retrieved_chunks": chunks,

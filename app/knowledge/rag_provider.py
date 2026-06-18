@@ -67,6 +67,8 @@ class RagProvider:
         Returns:
             {
                 "source": "rag",
+                "provider": "tfidf",
+                "provider": "tfidf",
                 "matched": bool,
                 "query": str,
                 "retrieved_chunks": [...],
@@ -83,6 +85,7 @@ class RagProvider:
                 if result.get("status") != "ok":
                     return {
                         "source": "rag",
+                "provider": "tfidf",
                         "matched": False,
                         "query": query,
                         "retrieved_chunks": [],
@@ -95,6 +98,7 @@ class RagProvider:
         if not chunks:
             return {
                 "source": "rag",
+                "provider": "tfidf",
                 "matched": False,
                 "query": query,
                 "retrieved_chunks": [],
@@ -108,6 +112,7 @@ class RagProvider:
         if not relevant:
             return {
                 "source": "rag",
+                "provider": "tfidf",
                 "matched": False,
                 "query": query,
                 "retrieved_chunks": [],

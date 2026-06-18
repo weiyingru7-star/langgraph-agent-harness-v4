@@ -22,6 +22,9 @@ data/app.db
 *.sqlite
 *.sqlite3
 
+# Chroma vector store — not committed
+data/chroma/
+
 # But keep data JSON/MD files
 !data/*.json
 !data/*.md
