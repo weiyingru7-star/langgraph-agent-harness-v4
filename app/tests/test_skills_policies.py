@@ -29,8 +29,9 @@ class TestSkillRouting:
         ))
         assert state["intent"] == "recommendation"
         assert state["selected_skill"] == "recommendation_skill"
-        assert state["skill_result"]["action"] == "recommendation"
-        assert "product_info" in state["skill_result"]
+        assert "message" in state["skill_result"]
+        # Phase 10: recommendation_skill 返回保守说明，不是具体商品
+        assert "推荐" in state["skill_result"]["message"]
         assert state["need_human"] is False
 
     def test_first_refund(self):

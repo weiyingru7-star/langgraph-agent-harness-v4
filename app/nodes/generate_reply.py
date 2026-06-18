@@ -129,7 +129,12 @@ def _refund_reply(state: CustomerServiceState) -> str:
 
 
 def _product_qa_reply(skill_result: dict) -> str:
-    """商品问答回复。"""
+    """商品问答回复。优先使用 skill 返回的 message，否则从 product_info 构建。"""
+    # 优先使用 skill 返回的上下文感知回复
+    msg = skill_result.get("message", "") if skill_result else ""
+    if msg:
+        return msg
+    # 旧版兼容
     product = skill_result.get("product_info", {}) if skill_result else {}
     name = product.get("product_name", "—")
     material = product.get("material", "—")
@@ -149,6 +154,11 @@ def _product_qa_reply(skill_result: dict) -> str:
 
 def _recommendation_reply(skill_result: dict) -> str:
     """商品推荐回复。"""
+    # Phase 10: 优先使用 skill 返回的 message
+    msg = skill_result.get("message", "") if skill_result else ""
+    if msg:
+        return msg
+    # 旧版兼容：从 product_info 读取
     product = skill_result.get("product_info", {}) if skill_result else {}
     name = product.get("product_name", "—")
     features = product.get("features", [])

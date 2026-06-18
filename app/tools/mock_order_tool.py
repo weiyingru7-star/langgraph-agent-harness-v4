@@ -13,5 +13,5 @@ def get_mock_order_info() -> dict:
         "status": "已发货",
         "tracking_no": "SF1234567890",
         "eta": "预计明天到达",
-        "items": [{"name": "经典款运动鞋", "quantity": 1}],
+        "items": [{"name": "UPF50+ 轻薄防晒衣", "quantity": 1}],
     }
