@@ -57,3 +57,35 @@ def validate_llm_reply(reply: str, state: Dict[str, Any] | None = None) -> Dict[
             }
 
     return {"safe": True, "reason": "", "blocked_terms": []}
+
+
+def validate_rag_answer(reply: str, sources: list, retrieved_chunks: list) -> Dict[str, Any]:
+    """检查 RAG answer 是否安全。
+
+    Args:
+        reply: LLM 生成的回答
+        sources: LLM 声明的来源
+        retrieved_chunks: 实际检索到的 chunks
+
+    Returns:
+        {"safe": bool, "reason": str, "blocked_terms": list}
+    """
+    if not reply:
+        return {"safe": False, "reason": "回复为空", "blocked_terms": []}
+
+    blocked = []
+    for term in _DANGEROUS_TERMS:
+        if term in reply:
+            blocked.append(term)
+    if blocked:
+        return {"safe": False, "reason": f"回复包含危险承诺: {'; '.join(blocked)}", "blocked_terms": blocked}
+
+    if not sources:
+        return {"safe": False, "reason": "缺少资料来源", "blocked_terms": []}
+
+    valid_files = set(c["source_file"] for c in retrieved_chunks)
+    for src in sources:
+        if src not in valid_files:
+            return {"safe": False, "reason": f"资料来源 {src} 不在检索结果中", "blocked_terms": []}
+
+    return {"safe": True, "reason": "", "blocked_terms": []}

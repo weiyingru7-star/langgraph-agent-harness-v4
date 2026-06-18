@@ -24,3 +24,17 @@ class BaseLLMProvider(ABC):
             {"reply": str, "provider": str, "success": bool}
             或 {"error": str}
         """
+
+    def generate_rag_answer(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        基于 RAG retrieved_chunks 生成回答。
+
+        Args:
+            payload: 包含 user_message, conversation_history,
+                     retrieved_chunks, safety_rules 等
+
+        Returns:
+            {"reply": str, "sources": list, "provider": str, "success": bool}
+            或 {"error": str}
+        """
+        raise NotImplementedError("generate_rag_answer not implemented")

@@ -31,6 +31,18 @@ SYSTEM_PROMPT = """你是一个电商客服回复润色助手。你的职责：
 10. 只输出 JSON，不要额外说明。"""
 
 
+RAG_SYSTEM_PROMPT = """你是一个客服知识库问答助手。你的职责：
+
+1. 只能基于下方提供的「参考资料」（retrieved_chunks）回答用户问题。
+2. 不得使用外部知识或编造内容。
+3. 如果参考资料不足以回答，回复「当前资料不足，建议转人工确认」。
+4. 不得承诺「已退款」「已补发」「已发货」「已赔偿」「已处理完成」。
+5. 不得修改业务决策（退款、转人工、订单操作等）。
+6. 在回答末尾注明资料来源，例如：依据：refund_policy.md。
+7. 输出必须是 JSON 格式：{"reply": "你的回答", "sources": ["来源文件1.md", "来源文件2.md"]}
+8. 只输出 JSON，不要额外说明。"""
+
+
 class DeepSeekProvider(BaseLLMProvider):
     """DeepSeek API Provider，调用 DeepSeek Chat Completions 润色回复。"""
 
@@ -39,6 +51,8 @@ class DeepSeekProvider(BaseLLMProvider):
         self.base_url = os.getenv("DEEPSEEK_BASE_URL", _DEFAULT_BASE_URL).rstrip("/")
         self.model = os.getenv("DEEPSEEK_MODEL", _DEFAULT_MODEL)
         self.timeout = int(os.getenv("LLM_TIMEOUT_SECONDS", _DEFAULT_TIMEOUT))
+
+    # ... [keep existing generate_reply, _build_prompt, _parse_reply unchanged] ...
 
     def generate_reply(self, payload: dict) -> dict:
         # 没有 API Key 直接返回
@@ -109,6 +123,70 @@ class DeepSeekProvider(BaseLLMProvider):
                 "success": False,
                 "error": str(e),
             }
+
+    def generate_rag_answer(self, payload: dict) -> dict:
+        """基于 RAG retrieved_chunks 生成回答。"""
+        chunks = payload.get("retrieved_chunks", [])
+        if not chunks:
+            return {"reply": "", "sources": [], "provider": "deepseek", "success": False, "error": "no_evidence"}
+        if not self.api_key:
+            return {"reply": "", "sources": [], "provider": "deepseek", "success": False, "error": "missing_api_key"}
+
+        prompt = self._build_rag_prompt(payload)
+        try:
+            response = httpx.post(
+                f"{self.base_url}/v1/chat/completions",
+                headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
+                json={
+                    "model": self.model,
+                    "messages": [{"role": "system", "content": RAG_SYSTEM_PROMPT},
+                                 {"role": "user", "content": prompt}],
+                    "temperature": 0.3,
+                    "max_tokens": 1024,
+                },
+                timeout=self.timeout,
+            )
+            response.raise_for_status()
+            data = response.json()
+            content = data.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+            if not content:
+                return {"reply": "", "sources": [], "provider": "deepseek", "success": False, "error": "empty_response"}
+            result = self._parse_rag_reply(content, chunks)
+            if result:
+                return result
+            return {"reply": content, "sources": list(set(c["source_file"] for c in chunks)), "provider": "deepseek", "success": True}
+        except httpx.TimeoutException:
+            return {"reply": "", "sources": [], "provider": "deepseek", "success": False, "error": "timeout"}
+        except Exception as e:
+            return {"reply": "", "sources": [], "provider": "deepseek", "success": False, "error": str(e)}
+
+    def _build_rag_prompt(self, payload: dict) -> str:
+        """构建 RAG 问答 prompt。"""
+        parts = [f"## 用户问题\n{payload.get('user_message', '')}"]
+        parts.append("\n## 参考资料")
+        for c in payload.get("retrieved_chunks", []):
+            parts.append(f"--- {c['source_file']} ---\n{c['text']}")
+        return "\n".join(parts)
+
+    def _parse_rag_reply(self, content: str, chunks: list) -> dict | None:
+        """解析 RAG 回答 JSON。"""
+        try:
+            data = json.loads(content)
+            if isinstance(data, dict) and "reply" in data:
+                sources = data.get("sources", list(set(c["source_file"] for c in chunks)))
+                return {"reply": data["reply"].strip(), "sources": sources, "provider": "deepseek", "success": True}
+        except json.JSONDecodeError:
+            pass
+        match = re.search(r'\{[^}]*"reply"[^}]*\}', content, re.DOTALL)
+        if match:
+            try:
+                data = json.loads(match.group())
+                if "reply" in data:
+                    sources = data.get("sources", list(set(c["source_file"] for c in chunks)))
+                    return {"reply": data["reply"].strip(), "sources": sources, "provider": "deepseek", "success": True}
+            except (json.JSONDecodeError, AttributeError):
+                pass
+        return None
 
     def _build_prompt(self, payload: dict) -> str:
         """构建用户 prompt。"""
