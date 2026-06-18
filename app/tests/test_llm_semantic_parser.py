@@ -25,6 +25,7 @@ def setup_function():
 class TestSemanticParserUtils:
     """Semantic Parser 工具函数测试。"""
 
+    @patch.dict(os.environ, {"LLM_ENABLE_SEMANTIC_PARSER": "", "LLM_PROVIDER": "mock"})
     def test_should_enable_default_false(self):
         """默认关闭。"""
         assert should_enable() is False
@@ -117,9 +118,9 @@ class TestMockProvider:
     def test_mock_returns_structured(self):
         provider = MockLLMProvider()
         result = provider.parse_semantic({"user_message": "那个遮阳帽不错"})
-        assert result["success"] is True
-        assert result["intent"] in ALLOWED_INTENTS
-        assert result["confidence"] > 0
+        # Mock provider intentionally returns fail to trigger fallback
+        assert result["success"] is False
+        assert result["error"] == "mock_noop"
 
 
 class TestDefaultBehavior:

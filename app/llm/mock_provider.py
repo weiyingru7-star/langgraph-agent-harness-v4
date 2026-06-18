@@ -35,10 +35,7 @@ class MockLLMProvider(BaseLLMProvider):
         }
 
     def parse_semantic(self, payload: dict) -> dict:
-        """Mock 语义解析。"""
-        text = payload.get("user_message", "") or ""
-        if not text:
-            return {"intent": "smalltalk", "explicit_product": None, "query_type": "unknown",
-                    "use_history": False, "confidence": 0.3, "provider": "mock", "success": True}
-        return {"intent": "product_question", "explicit_product": None, "query_type": "general",
-                "use_history": False, "confidence": 0.7, "provider": "mock", "success": True}
+        """Mock 语义解析。返回 fallback 以触发规则回退。"""
+        return {"intent": "unknown", "explicit_product": None, "query_type": "unknown",
+                "use_history": False, "confidence": 0.0, "provider": "mock", "success": False,
+                "error": "mock_noop"}
