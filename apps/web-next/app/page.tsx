@@ -46,18 +46,18 @@ function generateId(): string {
 }
 
 function getSessionId(): string {
-  if (typeof window === "undefined") return "ssr";
-  let sid = localStorage.getItem("session_id");
+  let sid = "";
+  try { sid = localStorage.getItem("session_id") || ""; } catch { /* ssr */ }
   if (!sid) {
     sid = generateId();
-    localStorage.setItem("session_id", sid);
+    try { localStorage.setItem("session_id", sid); } catch { /* ssr */ }
   }
   return sid;
 }
 
 function resetSessionId(): string {
   const sid = generateId();
-  localStorage.setItem("session_id", sid);
+  try { localStorage.setItem("session_id", sid); } catch { /* ssr */ }
   return sid;
 }
 
@@ -73,10 +73,17 @@ export default function Home() {
   const [status, setStatus] = useState<Status>("idle");
   const [statusText, setStatusText] = useState("idle");
   const [input, setInput] = useState("");
-  const [sessionId, setSessionId] = useState(getSessionId());
+  const [sessionId, setSessionId] = useState("");
+  const [mounted, setMounted] = useState(false);
   const [apiOk, setApiOk] = useState<boolean | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Hydration-safe: load sessionId after mount
+  useEffect(() => {
+    setSessionId(getSessionId());
+    setMounted(true);
+  }, []);
 
   // Auto-scroll
   useEffect(() => {
