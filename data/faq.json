@@ -1,0 +1,44 @@
+[
+  {
+    "faq_id": "faq_001",
+    "question_keywords": ["材质", "面料", "透气", "防晒"],
+    "answer": "商品采用锦纶混纺面料，轻薄透气，UPF50+ 防晒指数，适合夏季日常使用。",
+    "related_intents": ["product_question", "recommendation"]
+  },
+  {
+    "faq_id": "faq_002",
+    "question_keywords": ["尺码", "码数", "大小", "能穿"],
+    "answer": "防晒衣尺码为 S/M/L/XL，运动外套为 M/L/XL/XXL，遮阳帽为均码可调节。建议按平时尺码选购，如果拿不准可以告诉我身高体重帮您参考。",
+    "related_intents": ["product_question"]
+  },
+  {
+    "faq_id": "faq_003",
+    "question_keywords": ["发货", "什么时候发", "多久发"],
+    "answer": "现货商品 48 小时内发货，预售商品以页面标注为准。发货后会通过短信通知物流单号。",
+    "related_intents": ["logistics_question"]
+  },
+  {
+    "faq_id": "faq_004",
+    "question_keywords": ["退换货", "退货", "换货", "退"],
+    "answer": "商品不影响二次销售的情况下，签收后 7 天内可申请退换货。具体退换流程可以联系客服处理。",
+    "related_intents": ["refund_request", "exchange_request"]
+  },
+  {
+    "faq_id": "faq_005",
+    "question_keywords": ["怎么洗", "保养", "清洗", "洗涤"],
+    "answer": "建议冷水轻柔手洗或使用洗衣袋机洗，不可漂白、不可高温烘干，自然晾干即可保持最佳状态。",
+    "related_intents": ["product_question"]
+  },
+  {
+    "faq_id": "faq_006",
+    "question_keywords": ["推荐", "买哪款", "哪个好", "适合我吗"],
+    "answer": "夏季推荐防晒衣（UPF50+ 轻薄透气），运动推荐轻量外套（防风防泼水），旅行推荐遮阳帽（可折叠便携）。具体可以告诉我使用场景帮您推荐。",
+    "related_intents": ["recommendation", "product_question"]
+  },
+  {
+    "faq_id": "faq_007",
+    "question_keywords": ["物流", "快递", "什么时候到", "到哪了"],
+    "answer": "快递发出后通常在 3-5 个工作日内到达，具体时效因地区而异。您可以提供订单号帮您查询具体物流信息。",
+    "related_intents": ["logistics_question"]
+  }
+]
