@@ -3,6 +3,7 @@ classify_intent.py — 意图识别节点
 
 职责：通过关键词匹配识别用户意图。
       第一版用关键词规则，后续升级为真实 LLM。
+      Phase 7 新增：图文场景下拼接 multimodal_analysis 增强匹配。
 """
 
 from datetime import datetime
@@ -20,11 +21,6 @@ from app.state.customer_state import (
 )
 
 # 关键词规则，优先级从高到低
-# 每条：(intent值, 置信度, [关键词列表])
-# 优先级说明：
-#   human_request > complaint > refund_request > exchange_request
-#   > logistics_question > recommendation > product_question
-# 未命中任何关键词时，默认返回 smalltalk + 低置信度 0.3
 _INTENT_RULES = [
     (INTENT_HUMAN_REQUEST, 0.95, ["人工", "真人", "客服", "转人工", "我要找人"]),
     (INTENT_COMPLAINT, 0.95, ["投诉", "差评", "骗子", "垃圾", "不满意"]),
@@ -36,11 +32,26 @@ _INTENT_RULES = [
 ]
 
 
+def _get_combined_text(state: CustomerServiceState) -> str:
+    """获取用于关键词匹配的文本。
+
+    图文场景：拼接 user_message 和 multimodal_analysis 的 combined_need。
+    纯文本场景：只使用 user_message。
+    """
+    text = state["user_message"]
+    multimodal = state.get("multimodal_analysis")
+    if multimodal:
+        need = multimodal.get("combined_need", "") if isinstance(multimodal, dict) else ""
+        if need:
+            text = text + " " + need
+    return text
+
+
 def classify_intent(state: CustomerServiceState) -> dict:
     """
     通过关键词匹配识别用户意图。
 
-    读取字段：user_message
+    读取字段：user_message, multimodal_analysis（图文增强）
     写入字段：intent, intent_confidence, logs
 
     Args:
@@ -49,7 +60,7 @@ def classify_intent(state: CustomerServiceState) -> dict:
     Returns:
         包含 intent, intent_confidence, logs 的部分 state dict
     """
-    text = state["user_message"]
+    text = _get_combined_text(state)
     intent = INTENT_SMALLTALK
     confidence = 0.3
 

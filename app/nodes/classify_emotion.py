@@ -3,6 +3,7 @@ classify_emotion.py — 情绪识别节点
 
 职责：通过关键词匹配识别用户情绪。
       第一版用关键词规则，后续升级为真实 LLM。
+      Phase 7 新增：图文场景下拼接 multimodal_analysis 增强匹配。
 """
 
 from datetime import datetime
@@ -16,10 +17,6 @@ from app.state.customer_state import (
     CustomerServiceState,
 )
 
-# 关键词规则，优先级从高到低
-# 每条：(emotion值, 评分, [关键词列表])
-# 优先级说明：angry > urgent > anxious > disappointed > neutral
-# emotion_score > 0.85 时会触发转人工（Phase 5 中实现）
 _EMOTION_RULES = [
     (EMOTION_ANGRY, 0.90, ["垃圾", "骗子", "投诉", "太差了", "气死了", "什么态度", "差评"]),
     (EMOTION_URGENT, 0.80, ["急", "马上", "立刻", "现在就要", "今天必须"]),
@@ -28,11 +25,22 @@ _EMOTION_RULES = [
 ]
 
 
+def _get_combined_text(state: CustomerServiceState) -> str:
+    """获取用于关键词匹配的文本。"""
+    text = state["user_message"]
+    multimodal = state.get("multimodal_analysis")
+    if multimodal:
+        need = multimodal.get("combined_need", "") if isinstance(multimodal, dict) else ""
+        if need:
+            text = text + " " + need
+    return text
+
+
 def classify_emotion(state: CustomerServiceState) -> dict:
     """
     通过关键词匹配识别用户情绪。
 
-    读取字段：user_message
+    读取字段：user_message, multimodal_analysis（图文增强）
     写入字段：emotion, emotion_score, logs
 
     Args:
@@ -41,9 +49,9 @@ def classify_emotion(state: CustomerServiceState) -> dict:
     Returns:
         包含 emotion, emotion_score, logs 的部分 state dict
     """
-    text = state["user_message"]
+    text = _get_combined_text(state)
     emotion = EMOTION_NEUTRAL
-    score = 0.0  # 未命中任何关键词时，中性情绪 + 0 分
+    score = 0.0
 
     if text:
         for emotion_val, score_val, keywords in _EMOTION_RULES:

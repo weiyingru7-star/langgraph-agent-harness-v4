@@ -46,7 +46,13 @@ def route_to_skill(state: CustomerServiceState) -> dict:
     intent = state["intent"]
     result = {}
 
-    if intent in _ROUTE_MAP:
+    # 特殊处理：image_only（纯图片无上轮文字）
+    if state["modality"] == "image_only":
+        result["selected_skill"] = None
+        result["skill_result"] = {
+            "action": "image_clarification",
+        }
+    elif intent in _ROUTE_MAP:
         skill_func, skill_name = _ROUTE_MAP[intent]
 
         # route_to_skill 负责设置 selected_skill

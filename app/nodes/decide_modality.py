@@ -1,12 +1,16 @@
 """
 decide_modality.py — 模态判断节点
 
-职责: 根据 user_message / image_url / image_base64 判断输入类型。
-      此节点是纯代码判断，不调用 LLM。
+职责：根据 user_message / image_url / image_base64 判断输入类型。
+      Phase 7 新增：memory 回溯 + 先文字后图片处理。
 """
 
 from datetime import datetime
 
+from app.memory.conversation_memory import (
+    get_last_user_message,
+    save_last_user_message,
+)
 from app.state.customer_state import (
     MODALITY_IMAGE_ONLY,
     MODALITY_TEXT_ONLY,
@@ -20,14 +24,19 @@ def decide_modality(state: CustomerServiceState) -> dict:
     """
     判断输入模态类型。
 
-    读取字段: user_message, image_url, image_base64
-    写入字段: modality, logs
+    读取字段：session_id, user_message, image_url, image_base64
+    写入字段：modality, logs
 
     Rules:
-        - 有文字、无图片 → text_only
-        - 无文字、有图片 → image_only
         - 有文字、有图片 → text_with_image
+        - 有文字、无图片 → text_only
+        - 无文字、有图片 → image_only（可升级为 text_with_image）
         - 都无           → unknown
+
+    Phase 7 新增：
+        - 无文字、有图片时，检查 memory 中是否有上一轮文字
+        - 如果有，升级为 text_with_image
+        - 有文字时，保存到 memory
 
     Args:
         state: 当前状态
@@ -37,6 +46,11 @@ def decide_modality(state: CustomerServiceState) -> dict:
     """
     user_msg = state["user_message"]
     has_image = bool(state["image_url"] or state["image_base64"])
+    session_id = state["session_id"]
+
+    result = {}
+    modality = MODALITY_UNKNOWN
+    desc = ""
 
     if user_msg and has_image:
         modality = MODALITY_TEXT_WITH_IMAGE
@@ -45,11 +59,23 @@ def decide_modality(state: CustomerServiceState) -> dict:
         modality = MODALITY_TEXT_ONLY
         desc = "有文字、无图片"
     elif has_image:
-        modality = MODALITY_IMAGE_ONLY
-        desc = "无文字、有图片"
+        # 纯图片：检查 memory 是否有上一轮文字
+        prev = get_last_user_message(session_id)
+        if prev:
+            modality = MODALITY_TEXT_WITH_IMAGE
+            desc = f"无文字有图片，读取上轮文字（{prev[:20]}…）后升级"
+            # 合并后的文字需要返回给下游节点使用
+            result.update({"user_message": prev})
+        else:
+            modality = MODALITY_IMAGE_ONLY
+            desc = "无文字、有图片，无上轮文字可回溯"
     else:
         modality = MODALITY_UNKNOWN
         desc = "无文字、无图片"
+
+    # 如果本轮有文字，保存到 memory
+    if user_msg:
+        save_last_user_message(session_id, user_msg)
 
     updated_logs = list(state["logs"])
     updated_logs.append({
@@ -58,4 +84,4 @@ def decide_modality(state: CustomerServiceState) -> dict:
         "timestamp": datetime.now().strftime("%H:%M:%S"),
     })
 
-    return {"modality": modality, "logs": updated_logs}
+    return {"modality": modality, "logs": updated_logs, **result}

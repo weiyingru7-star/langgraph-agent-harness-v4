@@ -39,21 +39,23 @@ class TestTextOnly:
 class TestImageOnly:
     """纯图片输入场景。"""
 
+    SID = "t-img"  # 使用独立 session_id，避免 memory 干扰
+
     def test_modality(self):
         state = run_graph(create_initial_state(
-            session_id="t", image_url="https://example.com/test.jpg",
+            session_id=self.SID, image_url="https://example.com/test.jpg",
         ))
         assert state["modality"] == "image_only"
 
     def test_text_analysis_is_none(self):
         state = run_graph(create_initial_state(
-            session_id="t", image_url="https://example.com/test.jpg",
+            session_id=self.SID, image_url="https://example.com/test.jpg",
         ))
         assert state["text_analysis"] is None
 
     def test_logs_contain_all_nodes(self):
         state = run_graph(create_initial_state(
-            session_id="t", image_url="https://example.com/test.jpg",
+            session_id=self.SID, image_url="https://example.com/test.jpg",
         ))
         names = _node_names(state)
         for node in EXPECTED_NODES:

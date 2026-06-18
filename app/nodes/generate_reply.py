@@ -39,6 +39,12 @@ def generate_reply(state: CustomerServiceState) -> dict:
 def _build_reply(state: CustomerServiceState) -> str:
     """根据 state 字段选择合适的回复模板。"""
 
+    # 优先级 0：image_clarification → 固定追问模板
+    sr = state["skill_result"] or {}
+    action = sr.get("action", "")
+    if action == "image_clarification":
+        return "我看到您发了一张图片，请问您想咨询这张图片里的什么问题？比如质量、材质、安装、售后还是价格？"
+
     # 优先级 1：need_human → 转人工
     if state["need_human"]:
         return _human_transfer_reply(state)

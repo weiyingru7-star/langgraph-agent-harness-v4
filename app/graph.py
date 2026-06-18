@@ -1,17 +1,19 @@
 """
 graph.py — LangGraph 图定义
 
-构建完整的 LangGraph StateGraph，包含 10 个线性节点：
-  START → parse_input → decide_modality → analyze_text
+构建完整的 LangGraph StateGraph，包含 11 个线性节点：
+  START → parse_input → decide_modality
+       → analyze_text → analyze_multimodal
        → classify_intent → classify_emotion → classify_stage
        → route_to_skill → escalation_check
        → generate_reply → save_log → END
 
-提供 build_graph() 和 run_graph() 两个入口函数。
+analyze_multimodal 在内部检查 modality，非图文场景直接跳过。
 """
 
 from langgraph.graph import END, StateGraph
 
+from app.nodes.analyze_multimodal import analyze_multimodal
 from app.nodes.analyze_text import analyze_text
 from app.nodes.classify_emotion import classify_emotion
 from app.nodes.classify_intent import classify_intent
@@ -28,10 +30,11 @@ from app.state.customer_state import CustomerServiceState
 def build_graph():
     graph = StateGraph(CustomerServiceState)
 
-    # 注册 10 个节点
+    # 注册 11 个节点
     graph.add_node("parse_input", parse_input)
     graph.add_node("decide_modality", decide_modality)
     graph.add_node("analyze_text", analyze_text)
+    graph.add_node("analyze_multimodal", analyze_multimodal)
     graph.add_node("classify_intent", classify_intent)
     graph.add_node("classify_emotion", classify_emotion)
     graph.add_node("classify_stage", classify_stage)
@@ -42,10 +45,10 @@ def build_graph():
 
     graph.set_entry_point("parse_input")
 
-    # 线性边（Phase 6 不做条件路由）
     graph.add_edge("parse_input", "decide_modality")
     graph.add_edge("decide_modality", "analyze_text")
-    graph.add_edge("analyze_text", "classify_intent")
+    graph.add_edge("analyze_text", "analyze_multimodal")
+    graph.add_edge("analyze_multimodal", "classify_intent")
     graph.add_edge("classify_intent", "classify_emotion")
     graph.add_edge("classify_emotion", "classify_stage")
     graph.add_edge("classify_stage", "route_to_skill")
