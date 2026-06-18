@@ -1,22 +1,29 @@
 # LangGraph 电商客服 Agent Harness V4-lite
 
-> 基于 Python + LangGraph 构建的电商客服 Agent Harness 学习项目，支持文本、图片、图文输入，具备意图识别、情绪识别、客户阶段判断、Skill 路由、Policy 规则、Mock Tool、多模态路由、回复生成和测试验证。
+> 基于 LangGraph + FastAPI + Next.js + DeepSeek + RAG 的可控型电商客服 Agent 作品集项目。支持结构化商品问答、RAG 文档检索、多轮上下文、LLM 语义解析、Policy 安全边界。
 
 ---
 
-## 项目目标
+## 项目定位
 
-本项目不是普通的 Prompt Demo，也不是简单的 RAG 客服机器人，而是一个 **Agent Harness 学习项目**。
+本项目不是普通 Chatbot，而是一个 **Agent Harness**（智能体运行框架）。核心区别：LLM 只负责理解和表达，Policy 负责决策，LangGraph 负责流转。
 
-**Agent Harness** 指一套可控、可追踪、可测试、可扩展的智能体运行框架。核心区别在于：
-- Prompt Demo：把全部逻辑塞进 prompt，LLM 直接决定一切，行为不可控、不可追踪。
-- Agent Harness：LLM 负责"理解"，LangGraph 负责"流转"，代码（Skill/Tool/Policy）负责"执行"。
+| 维度 | 普通 Chatbot | Agent Harness（本项目） |
+|------|-------------|----------------------|
+| 回复生成 | LLM 一次性生成 | Structured → RAG → Policy → Reply |
+| 知识来源 | LLM 训练数据 | 本地商品 JSON + RAG 文档 |
+| 退款决策 | LLM 可能乱承诺 | Policy 代码控制 |
+| 可观测性 | 黑盒 | 每个节点有 Agent Trace |
+| 业务路由 | LLM 决定 | LangGraph 路由 |
 
-目标是用 LangGraph 搭建一个电商客服 Agent，重点学习：
-1. 如何用图（Graph）管理多步骤对话流程
-2. 如何将业务规则与 LLM 解耦
-3. 如何让每个节点可观测、可测试
-4. 如何设计可扩展的 Agent 架构
+### 解决的问题
+
+- 🎯 **商品咨询**：尺码/价格/材质/颜色走结构化字段，不走 LLM 编造
+- 📚 **售后政策**：RAG 检索 evidence，带 source_file 引用
+- 💬 **多轮上下文**：Context Loader + SQLite 持久化，追问不走丢
+- 🧠 **语义理解**：LLM Semantic Parser 识别"那个遮阳帽""第二个怎么样"
+- 🔒 **安全边界**：退款/投诉/人工强规则优先，LLM 不决策
+- 🔍 **可解释**：Agent Trace 展示每个节点的 intent / skill / evidence
 
 ---
 
@@ -26,50 +33,53 @@
 |------|------|
 | Python 3.13 | 运行时 |
 | LangGraph | 状态图框架，控制流程流转 |
-| langchain-core | 基础组件 |
+| FastAPI | HTTP 接口 |
+| SQLite | 会话持久化 |
+| DeepSeek | LLM 润色 + RAG 回答 + 语义解析 |
+| Next.js 14 | 产品级前端 Demo |
+| TypeScript | 前端类型安全 |
+| pytest | 219 个测试 |
 | TypedDict | 状态模型定义 |
-| pytest | 测试框架（60 个测试） |
-| Claude Code + Superpowers | AI 辅助开发 |
 
 ---
 
-## 核心架构
+## 架构
 
 ```
-┌─────────────────────────────────────────────────────┐
-│  State — CustomerServiceState (TypedDict)           │
-│  所有节点共享的"数据包"，包含会话输入、分析结果、     │
-│  路由结果、策略决策、回复、日志等 21 个字段          │
-├─────────────────────────────────────────────────────┤
-│  Nodes — LangGraph 节点（11 个线性节点）             │
-│  parse_input → decide_modality → analyze_text/       │
-│  analyze_multimodal → classify_intent →              │
-│  classify_emotion → classify_stage → route_to_skill  │
-│  → escalation_check → generate_reply → save_log      │
-├─────────────────────────────────────────────────────┤
-│  Skills — 客服业务能力（7 个）                        │
-│  product_qa / recommendation / logistics             │
-│  / refund / exchange / complaint / human              │
-├─────────────────────────────────────────────────────┤
-│  Tools — 外部系统 mock（3 个）                       │
-│  mock_product_tool / mock_order_tool                  │
-│  / mock_multimodal_tool                               │
-├─────────────────────────────────────────────────────┤
-│  Policies — 确定性业务规则（2 个）                    │
-│  refund_policy / escalation_policy                    │
-├─────────────────────────────────────────────────────┤
-│  Memory — 会话上下文保存                             │
-│  基于 session_id 的简易内存 dict                       │
-├─────────────────────────────────────────────────────┤
-│  Logs / Errors — 可观测性                            │
-│  每个节点写入 logs，出错时触发转人工兜底               │
-├─────────────────────────────────────────────────────┤
-│  Tests — 全路径验证                                  │
-│  60 个 pytest 覆盖所有场景路径                        │
-└─────────────────────────────────────────────────────┘
+用户输入 → Context Loader → Intent/Semantic Parser → Skill Router
+    → Structured KB / RAG / Policy → Reply Composer → Response
 ```
 
----
+```
+app/
+├── server.py              # FastAPI 入口 (+ CORS + .env 加载)
+├── graph.py               # LangGraph 图定义 (11 节点)
+├── state/                 # CustomerServiceState (TypedDict)
+├── nodes/                 # LangGraph 节点
+│   ├── classify_intent.py # 规则 + LLM Semantic Parser
+│   ├── route_to_skill.py  # RAG / Structured / Policy 路由
+│   └── generate_reply.py  # 模板 + DeepSeek 润色
+├── skills/                # 客服业务能力
+│   ├── product_qa_skill.py      # 结构化商品字段查询
+│   ├── knowledge_qa_skill.py    # RAG 文档检索
+│   ├── refund_skill.py          # 退款处理
+│   └── recommendation_skill.py  # 商品推荐
+├── llm/
+│   ├── deepseek_provider.py  # DeepSeek API
+│   ├── semantic_parser.py    # LLM 语义解析 + Code 校验
+│   └── safety.py             # 输出安全检查
+├── knowledge/
+│   ├── rag_provider.py     # TF-IDF RAG 检索
+│   ├── vector_store.py     # 简易向量存储
+│   └── chunker.py          # 文档切片
+├── persistence/
+│   └── sqlite_store.py     # SQLite 持久化
+└── tests/                  # 219 个 pytest
+apps/web-next/              # Next.js 前端 Demo
+data/                       # 商品 + FAQ 知识库
+knowledge/raw/              # RAG 原始文档
+docs/                       # 设计文档
+```
 
 ## 完整流程图
 
@@ -86,52 +96,42 @@
                     │decide_modality│
                     └───────┬───────┘
                            │
-              ┌────────────┼──────────────┐
-              ▼            ▼              ▼
+              ┌────────────┼──────────────────┐
+              ▼            ▼                  ▼
        ┌──────────┐ ┌──────────┐ ┌──────────────┐
        │text_only │ │image_only│ │text_with_    │
-       │          │ │          │ │image         │
+       │          │ │ 追问回复 │ │image         │
        └────┬─────┘ └────┬─────┘ └──────┬───────┘
             │            │              │
             ▼            ▼              ▼
-     ┌──────────┐ ┌──────────┐ ┌────────────────┐
-     │analyze_  │ │ 追问回复 │ │analyze_        │
-     │text      │ │不调多模态│ │multimodal      │
-     └────┬─────┘ └────┬─────┘ └───────┬────────┘
-          │            │               │
-          └────────────┼───────────────┘
-                       ▼
-                ┌─────────────────┐
-                │ classify_intent  │
-                └────────┬────────┘
-                       ▼
-                ┌──────────────────┐
-                │ classify_emotion  │
-                └────────┬─────────┘
-                       ▼
-                ┌─────────────────┐
-                │ classify_stage   │
-                └────────┬────────┘
-                       ▼
-                ┌──────────────────┐
-                │  route_to_skill   │
-                └────────┬─────────┘
-                       ▼
-                ┌──────────────────┐
-                │ escalation_check  │
-                └────────┬─────────┘
-                       ▼
-                ┌──────────────────┐
-                │  generate_reply   │
-                └────────┬─────────┘
-                       ▼
-                ┌─────────────┐
-                │  save_log   │
-                └──────┬──────┘
-                       ▼
-                ┌─────────────┐
-                │     END     │
-                └─────────────┘
+     ┌──────────┐ ┌──────────────┐ ┌────────────────┐
+     │classify_ │ │ 不调用多模态  │ │ mock 多模态     │
+     │intent    │ │              │ │                │
+     │+ Semantic│ │              │ │                │
+     │Parser    │ │              │ │                │
+     └────┬─────┘ └──────┬───────┘ └───────┬────────┘
+          │              │                 │
+          └──────────────┼─────────────────┘
+                         ▼
+                  ┌──────────────┐
+                  │ route_to_skill│ ← Structured / RAG / Policy
+                  └──────┬───────┘
+                         ▼
+                  ┌──────────────────┐
+                  │ escalation_check │
+                  └────────┬─────────┘
+                         ▼
+                  ┌──────────────────┐
+                  │  generate_reply   │ ← DeepSeek 润色
+                  └────────┬─────────┘
+                         ▼
+                  ┌─────────────┐
+                  │  save_log   │
+                  └──────┬──────┘
+                         ▼
+                  ┌─────────────┐
+                  │     END     │
+                  └─────────────┘
 ```
 
 ---
@@ -200,41 +200,56 @@
 
 ## 运行方式
 
+### FastAPI + Next.js（推荐）
+
 ```bash
-# 进入项目目录
-cd langgraph-agent-harness-v4
-
-# 创建虚拟环境
+# 终端 1：FastAPI 后端
+cd ~/langgraph-agent-harness-v4
 python3 -m venv .venv
-
-# 安装依赖
 .venv/bin/pip install -r requirements.txt
+.venv/bin/python -m uvicorn app.server:app --reload --port 8003
 
-# 运行主程序（展示多种客服场景）
-.venv/bin/python -m app.main
+# 终端 2：Next.js 前端
+cd ~/langgraph-agent-harness-v4/apps/web-next
+npm install
+npm run dev
+```
 
-# 运行全部测试
+浏览器打开 **http://localhost:3000**。
+
+### 运行测试
+
+```bash
 .venv/bin/python -m pytest -v
 ```
 
+### 开启 DeepSeek（可选）
+
+在项目根目录创建 `.env`：
+
+```bash
+LLM_PROVIDER=deepseek
+LLM_ENABLE_REPLY_POLISH=true
+LLM_ENABLE_SEMANTIC_PARSER=true
+DEEPSEEK_API_KEY=你的key
+```
+
+`.env` 不提交 Git。没有 `.env` 时使用 mock provider，不影响基本功能。
+
 ---
 
-## Demo 输入样例
+## Demo 场景
 
-运行 `python -m app.main` 后会依次展示以下场景：
-
-```
-"我的快递怎么还没到"          → 物流查询
-"质量太差了我要退款"          → 退款请求 + 情绪识别
-"这个衣服是什么材质"          → 商品咨询
-"我要人工，太生气了"          → 转人工
-"你们这个太垃圾了，我要投诉"  → 投诉处理
-"我要换个尺码"                → 换货请求
-"你好，在吗"                  → 闲聊兜底
-(纯图片)                      → 图片追问
-"这个破了能退吗" + 图片       → 图文多模态
-"这个怎么安装" + 安装图片     → 先文字后图片
-```
+| 场景 | 输入 | 路径 |
+|------|------|------|
+| 商品咨询 | "这个衣服是什么材质" | product_qa_skill + DeepSeek 润色 |
+| 尺码查询 | "运动外套有什么尺码" | Structured sizes |
+| 售后政策 | "超过7天还能退吗" | RAG + evidence (refund_policy.md) |
+| 保养说明 | "防晒衣怎么洗" | RAG (care_guide.md) |
+| 语义理解 | "那个遮阳帽不错" | Semantic Parser + product_qa |
+| 适合人群 | "运动外套我妈适合吗" | Semantic Parser + suitability |
+| 退款请求 | "质量太差了我要退款" | refund_skill (Policy 控制) |
+| 投诉转人工 | "我要找人工投诉" | complaint_skill (need_human=true) |
 
 ---
 
@@ -303,16 +318,21 @@ python3 -m venv .venv
 ```
 langgraph-agent-harness-v4/
 ├── app/
-│   ├── graph.py              # LangGraph 图定义
-│   ├── main.py               # 入口 + demo
-│   ├── state/                # CustomerServiceState
-│   ├── nodes/                # 11 个 LangGraph 节点
-│   ├── skills/               # 7 个客服 Skill
-│   ├── tools/                # 3 个 Mock Tool
-│   ├── policies/             # 2 个 Policy 规则
-│   ├── memory/               # 会话记忆
-│   └── tests/                # 60 个 pytest
-├── docs/                     # 8 份设计文档
+│   ├── server.py              # FastAPI 入口
+│   ├── graph.py               # LangGraph 图定义
+│   ├── state/                 # CustomerServiceState (TypedDict)
+│   ├── nodes/                 # 11 个 LangGraph 节点
+│   ├── skills/                # 客服业务 Skill
+│   ├── llm/                   # DeepSeek Provider + Semantic Parser + Safety
+│   ├── knowledge/             # RAG Provider + TF-IDF 向量存储
+│   ├── persistence/           # SQLite 持久化
+│   ├── api/                   # FastAPI 路由
+│   ├── schemas/               # Pydantic 请求/响应模型
+│   └── tests/                 # 219 个 pytest
+├── apps/web-next/             # Next.js 前端 Demo
+├── data/                      # 商品 JSON + FAQ + RAG 文档
+├── knowledge/raw/             # RAG 原始文档
+├── docs/                      # 设计文档
 ├── requirements.txt
 ├── CLAUDE.md
 └── README.md
@@ -324,10 +344,11 @@ langgraph-agent-harness-v4/
 
 | 文档 | 说明 |
 |------|------|
+| [docs/PORTFOLIO_OVERVIEW.md](docs/PORTFOLIO_OVERVIEW.md) | 作品集概述 |
 | [docs/STATE_DESIGN.md](docs/STATE_DESIGN.md) | 状态设计 |
 | [docs/GRAPH_DESIGN.md](docs/GRAPH_DESIGN.md) | 图流程设计 |
-| [docs/CLASSIFICATION_DESIGN.md](docs/CLASSIFICATION_DESIGN.md) | 分类节点设计 |
 | [docs/SKILL_POLICY_DESIGN.md](docs/SKILL_POLICY_DESIGN.md) | Skill/Tool/Policy 设计 |
-| [docs/REPLY_DESIGN.md](docs/REPLY_DESIGN.md) | 回复生成设计 |
-| [docs/MULTIMODAL_DESIGN.md](docs/MULTIMODAL_DESIGN.md) | 多模态路由设计 |
-| [docs/PROJECT_SUMMARY_DESIGN.md](docs/PROJECT_SUMMARY_DESIGN.md) | 项目总结设计 |
+| [docs/LOCAL_KNOWLEDGE_BASE_DESIGN.md](docs/LOCAL_KNOWLEDGE_BASE_DESIGN.md) | 本地知识库设计 |
+| [docs/LLM_PROVIDER_DESIGN.md](docs/LLM_PROVIDER_DESIGN.md) | LLM Provider 设计 |
+| [docs/HYBRID_RAG_DESIGN.md](docs/HYBRID_RAG_DESIGN.md) | 混合 RAG 设计 |
+| [docs/SQLITE_PERSISTENCE_DESIGN.md](docs/SQLITE_PERSISTENCE_DESIGN.md) | SQLite 持久化设计 |

@@ -15,3 +15,13 @@ __pycache__/
 # Environment
 .env
 .env.local
+
+# Database — not committed
+data/app.db
+*.db
+*.sqlite
+*.sqlite3
+
+# But keep data JSON/MD files
+!data/*.json
+!data/*.md

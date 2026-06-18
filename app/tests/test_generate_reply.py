@@ -42,7 +42,7 @@ class TestGenerateReply:
         ))
         assert state["selected_skill"] == "product_qa_skill"
         assert state["reply"]
-        assert any(w in state["reply"] for w in ["材质", "透气", "鞋底", "面料"])
+        assert any(w in state["reply"] for w in ["材质", "透气", "面料", "防晒"])
 
     def test_human_reply(self):
         """人工请求 → reply 包含转人工"""

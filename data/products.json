@@ -1,0 +1,41 @@
+[
+  {
+    "product_id": "suncoat_001",
+    "name": "UPF50+ 轻薄防晒衣",
+    "aliases": ["防晒衣", "防晒服", "防晒衫", "轻薄防晒衣", "衣服"],
+    "category": "防晒服",
+    "price_range": "129-199 元",
+    "material": "锦纶混纺面料，轻薄透气",
+    "sizes": ["S", "M", "L", "XL"],
+    "colors": ["白色", "浅灰", "浅蓝", "粉色"],
+    "features": ["UPF50+ 防晒", "轻薄", "透气", "适合夏季通勤"],
+    "suitable_scenarios": ["骑车", "通勤", "户外", "旅行"],
+    "care_instructions": "建议冷水手洗，避免高温烘干"
+  },
+  {
+    "product_id": "jacket_002",
+    "name": "轻量运动外套",
+    "aliases": ["运动外套", "轻量外套", "外套", "跑步外套"],
+    "category": "外套",
+    "price_range": "249-399 元",
+    "material": "聚酯纤维 + 弹性面料，防泼水处理",
+    "sizes": ["M", "L", "XL", "XXL"],
+    "colors": ["深蓝", "荧光绿", "黑色"],
+    "features": ["防风", "防泼水", "轻量", "弹性好"],
+    "suitable_scenarios": ["跑步", "骑行", "户外", "健身"],
+    "care_instructions": "建议冷水轻柔机洗，不可漂白"
+  },
+  {
+    "product_id": "hat_003",
+    "name": "可折叠遮阳帽",
+    "aliases": ["遮阳帽", "帽子", "防晒帽", "折叠帽"],
+    "category": "配件",
+    "price_range": "49-89 元",
+    "material": "速干面料 + 可调节帽围",
+    "sizes": ["均码（可调节）"],
+    "colors": ["米色", "浅灰", "藏青"],
+    "features": ["UPF50+ 防晒", "可折叠", "速干", "轻便"],
+    "suitable_scenarios": ["旅行", "户外", "通勤", "徒步"],
+    "care_instructions": "手洗或轻柔机洗，自然晾干"
+  }
+]

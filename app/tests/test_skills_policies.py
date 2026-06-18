@@ -29,8 +29,9 @@ class TestSkillRouting:
         ))
         assert state["intent"] == "recommendation"
         assert state["selected_skill"] == "recommendation_skill"
-        assert state["skill_result"]["action"] == "recommendation"
-        assert "product_info" in state["skill_result"]
+        assert "message" in state["skill_result"]
+        # Phase 10: recommendation_skill 返回保守说明，不是具体商品
+        assert "推荐" in state["skill_result"]["message"]
         assert state["need_human"] is False
 
     def test_first_refund(self):
@@ -53,7 +54,10 @@ class TestSkillRouting:
         assert state["intent"] == "product_question"
         assert state["selected_skill"] == "product_qa_skill"
         assert state["skill_result"]["action"] == "product_answer"
-        assert "product_info" in state["skill_result"]
+        # product_qa_skill 可能返回 matched_product / matched_faq / clarification
+        sr = state["skill_result"]
+        has_data = any(k in sr for k in ["matched_product", "matched_faq", "matched_product", "query_type"])
+        assert has_data, f"skill_result 缺少商品/FAQ 数据: {sr}"
         assert state["need_human"] is False
 
     def test_human_request(self):

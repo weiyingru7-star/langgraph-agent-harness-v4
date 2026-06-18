@@ -3,10 +3,17 @@ generate_reply.py — 回复生成节点
 
 职责：根据 skill_result、policy_decision、need_human 等字段
       生成结构化客服回复。第一版用模板，不调用真实 LLM。
+
+Phase 10.12 新增：LLM 回复润色开关。
+  默认关闭（LLM_ENABLE_REPLY_POLISH=false）时，行为和以前一致。
+  开启时：先生成 template_reply → LLM 润色 → Safety 检查 → 使用或回退。
 """
 
+import os
 from datetime import datetime
 
+from app.llm.provider_factory import get_llm_provider
+from app.llm.safety import validate_llm_reply
 from app.state.customer_state import CustomerServiceState
 
 
@@ -24,12 +31,59 @@ def generate_reply(state: CustomerServiceState) -> dict:
     Returns:
         包含 reply 和 logs 的部分 state dict
     """
-    reply = _build_reply(state)
+    # 1. 先生成模板回复（原有逻辑）
+    template_reply = _build_reply(state)
+
+    # 2. 如果 LLM 润色未开启，直接返回模板
+    llm_polish_enabled = os.getenv("LLM_ENABLE_REPLY_POLISH", "false") == "true"
+    if not llm_polish_enabled:
+        reply = template_reply
+        updated_logs = list(state["logs"])
+        updated_logs.append({
+            "node": "generate_reply",
+            "summary": f"reply_length={len(reply)}, need_human={state['need_human']}",
+            "timestamp": datetime.now().strftime("%H:%M:%S"),
+        })
+        return {"reply": reply, "logs": updated_logs}
+
+    # 3. LLM 润色开启：构建 payload 并调用
+    payload = {
+        "user_message": state.get("user_message", ""),
+        "intent": state.get("intent"),
+        "emotion": state.get("emotion"),
+        "emotion_score": state.get("emotion_score", 0.0),
+        "customer_stage": state.get("customer_stage"),
+        "selected_skill": state.get("selected_skill"),
+        "skill_result": state.get("skill_result"),
+        "policy_decision": state.get("policy_decision"),
+        "need_human": state.get("need_human", False),
+        "human_reason": state.get("human_reason"),
+        "conversation_history": state.get("conversation_history", []),
+        "template_reply": template_reply,
+    }
+
+    reply = template_reply
+    llm_used = False
+
+    try:
+        provider = get_llm_provider()
+        result = provider.generate_reply(payload)
+
+        if "error" not in result and result.get("success"):
+            llm_reply = result.get("reply", "")
+            safety = validate_llm_reply(llm_reply, state)
+            if safety["safe"] and llm_reply:
+                reply = llm_reply
+                llm_used = True
+            else:
+                print(f"[generate_reply] safety 拦截: {safety.get('reason', '')}")
+    except Exception as e:
+        print(f"[generate_reply] LLM 调用异常: {e}")
 
     updated_logs = list(state["logs"])
     updated_logs.append({
         "node": "generate_reply",
-        "summary": f"reply_length={len(reply)}, need_human={state['need_human']}",
+        "summary": f"reply_length={len(reply)}, need_human={state['need_human']}, llm_used={llm_used}",
         "timestamp": datetime.now().strftime("%H:%M:%S"),
     })
 
@@ -60,6 +114,8 @@ def _build_reply(state: CustomerServiceState) -> str:
         return _refund_reply(state)
     elif skill == "product_qa_skill":
         return _product_qa_reply(sr)
+    elif skill == "knowledge_qa_skill":
+        return _knowledge_qa_reply(sr)
     elif skill == "recommendation_skill":
         return _recommendation_reply(sr)
     elif skill == "exchange_skill":
@@ -129,7 +185,12 @@ def _refund_reply(state: CustomerServiceState) -> str:
 
 
 def _product_qa_reply(skill_result: dict) -> str:
-    """商品问答回复。"""
+    """商品问答回复。优先使用 skill 返回的 message，否则从 product_info 构建。"""
+    # 优先使用 skill 返回的上下文感知回复
+    msg = skill_result.get("message", "") if skill_result else ""
+    if msg:
+        return msg
+    # 旧版兼容
     product = skill_result.get("product_info", {}) if skill_result else {}
     name = product.get("product_name", "—")
     material = product.get("material", "—")
@@ -147,8 +208,24 @@ def _product_qa_reply(skill_result: dict) -> str:
     )
 
 
+def _knowledge_qa_reply(skill_result: dict) -> str:
+    """RAG 知识库问答回复。优先使用 skill 返回的 message。"""
+    msg = skill_result.get("message", "") if skill_result else ""
+    if msg:
+        return msg
+    chunks = skill_result.get("retrieved_chunks", []) if skill_result else []
+    if chunks:
+        return chunks[0].get("text", "暂无检索结果。")
+    return _fallback_reply()
+
+
 def _recommendation_reply(skill_result: dict) -> str:
     """商品推荐回复。"""
+    # Phase 10: 优先使用 skill 返回的 message
+    msg = skill_result.get("message", "") if skill_result else ""
+    if msg:
+        return msg
+    # 旧版兼容：从 product_info 读取
     product = skill_result.get("product_info", {}) if skill_result else {}
     name = product.get("product_name", "—")
     features = product.get("features", [])

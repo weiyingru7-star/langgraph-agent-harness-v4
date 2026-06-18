@@ -130,6 +130,22 @@ class CustomerServiceState(TypedDict):
     errors: List[str]
     """节点执行失败和兜底信息。errors 不为空时会触发转人工。"""
 
+    # ========== H. 多轮上下文字段（Phase 10.10） ==========
+    conversation_history: List[Dict[str, str]]
+    """最近几轮对话历史，由 Context Loader 在 graph 运行前注入。
+       格式：[{"role": "user"/"assistant", "content": "..."}]
+       用于 product_qa_skill 等节点处理追问。"""
+
+    # ========== I. LLM 语义解析字段（Phase 10.19） ==========
+    intent_source: str
+    """意图来源：rule / llm / fallback。"""
+    explicit_product: Optional[str]
+    """Semantic Parser 识别出的当前输入明确商品。"""
+    query_type: Optional[str]
+    """Semantic Parser 识别出的问题类型：size/material/price/suitability/care/color/general。"""
+    user_signal: Optional[str]
+    """用户信号：positive_interest / purchase_interest / negative_feedback / complaint / just_chat / unknown。"""
+
 
 def create_initial_state(
     session_id: str,
@@ -178,4 +194,11 @@ def create_initial_state(
         # G. 工程观测
         "logs": [],
         "errors": [],
+        # H. 多轮上下文
+        "conversation_history": [],
+        # I. LLM 语义解析
+        "intent_source": "rule",
+        "explicit_product": None,
+        "query_type": None,
+        "user_signal": None,
     }
