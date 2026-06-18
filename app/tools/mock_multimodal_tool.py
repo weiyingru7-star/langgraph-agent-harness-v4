@@ -1,9 +1,8 @@
 """
-mock_multimodal_tool.py — Mock 多模态分析工具
+mock_multimodal_tool.py — Mock 多模态分析工具（Legacy）
 
-职责：模拟多模态模型分析图片的能力。
-      第一版不接真实多模态模型，只返回 mock 结果。
-      注意：不判断真实图片内容，只用于验证流程完整性。
+⚠️ 此文件是 legacy mock，仅用于 analyze_multimodal 节点的 Phase 7 测试。
+纯图片场景目前走 image_clarification，不调用此工具。
 """
 
 
@@ -12,21 +11,7 @@ def analyze_mock_image_with_text(
     image_url: str | None = None,
     image_base64: str | None = None,
 ) -> dict:
-    """
-    模拟多模态图文分析。
-
-    第一版不判断真实图片内容，只根据 user_message 生成 mock 分析。
-    目的是验证流程完整性，而不是做真实图片识别。
-
-    Args:
-        user_message: 用户输入的文本
-        image_url: 图片 URL（可选）
-        image_base64: 图片 base64（可选）
-
-    Returns:
-        dict: mock 分析结果，包含 visible_issue、combined_need、confidence
-    """
-    # 根据文本关键词生成不同 mock 结果，使流程可测试
+    """模拟多模态图文分析。"""
     text = user_message or ""
 
     if "退" in text or "破" in text or "质量" in text:

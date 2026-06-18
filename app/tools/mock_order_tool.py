@@ -1,8 +1,8 @@
 """
-mock_order_tool.py — 订单查询 Mock
+mock_order_tool.py — 订单查询 Mock（Legacy）
 
-职责：模拟查询外部电商系统的订单数据。第一版不接真实 API。
-      Tool 只负责提供外部数据，不负责业务决策。
+⚠️ 此文件是 legacy mock，仅用于 logistics_skill。
+主要数据来源为硬编码示例数据。后续可迁移到真实物流 API 或本地 JSON。
 """
 
 

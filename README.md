@@ -200,7 +200,22 @@ docs/                       # 设计文档
 
 ## 运行方式
 
-### FastAPI + Next.js（推荐）
+### Docker Compose（推荐）
+
+```bash
+cd ~/langgraph-agent-harness-v4
+docker compose up --build
+```
+
+浏览器打开 **http://localhost:3000**。后端 API 在 `http://localhost:8003`。
+
+传入 DeepSeek API Key（可选）：
+
+```bash
+DEEPSEEK_API_KEY=你的key docker compose up --build
+```
+
+### 本地手动运行
 
 ```bash
 # 终端 1：FastAPI 后端

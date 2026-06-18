@@ -1,8 +1,9 @@
 """
-mock_product_tool.py — 商品查询 Mock
+mock_product_tool.py — 商品查询 Mock（Legacy）
 
-职责：模拟查询商品信息。第一版不接真实 API。
-      Tool 只负责提供外部数据，不负责业务决策。
+⚠️ 此文件是 legacy mock，仅用于 product_qa_skill / recommendation_skill 的回退兜底。
+主要商品数据来源已迁移到 data/products.json（local_product_tool）。
+新功能请使用 local_product_tool，不要扩展此文件。
 """
 
 
