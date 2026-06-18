@@ -157,3 +157,29 @@ class TestDefaultBehavior:
         ))
         logs_str = str(state.get("logs", []))
         assert "source=" in logs_str or "intent_source" in logs_str
+
+
+class TestSemanticParserWithSkill:
+    """Semantic Parser 与 product_qa_skill 集成。"""
+
+    def test_explicit_product_used_by_skill(self):
+        """state.explicit_product 被 product_qa_skill 优先使用。"""
+        from app.skills.product_qa_skill import run_product_qa_skill
+        state = create_initial_state(session_id="sp-sk", user_message="那个运动外套我妈适合吗")
+        state["intent"] = "product_question"
+        state["explicit_product"] = "轻量运动外套"
+        state["query_type"] = "suitability"
+        result = run_product_qa_skill(state)
+        sr = result["skill_result"]
+        assert sr["matched_product"]["product_id"] == "jacket_002"
+        assert sr["query_type"] == "suitability"
+        assert "运动外套" in sr.get("message", "")
+
+    def test_compliance_refund_still_works(self):
+        """退款完全不受影响。"""
+        from app.graph import run_graph
+        state = run_graph(create_initial_state(
+            session_id="sp-cr", user_message="质量太差了我要退款",
+        ))
+        assert state["selected_skill"] == "refund_skill"
+        assert state["policy_decision"] == "retention"

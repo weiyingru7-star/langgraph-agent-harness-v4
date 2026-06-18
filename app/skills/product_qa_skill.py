@@ -28,7 +28,7 @@ _QUERY_RULES: list[tuple[list[str], str]] = [
     (["码数", "尺码", "尺寸", "大小", "几码", "多大", "均码"], "size"),
     (["材质", "面料", "什么料", "成分"], "material"),
     (["多少钱", "价格", "价位", "贵吗", "便宜"], "price"),
-    (["适合", "适不适合", "多少岁", "送人"], "suitability"),
+    (["适合", "适不适合", "多少岁", "送人", "我妈", "妈妈", "长辈", "中年", "通勤", "骑车", "户外", "日常穿", "送妈妈"], "suitability"),
     (["怎么洗", "洗涤", "保养", "能机洗吗", "清洗"], "care"),
     (["颜色", "黑色", "白色", "有哪些颜色", "什么颜色"], "color"),
     (["推荐", "介绍", "怎么样"], "general"),
@@ -167,18 +167,31 @@ def run_product_qa_skill(state: dict) -> dict:
     通用商品问答入口。
 
     优先级：
+        0. state.explicit_product（LLM Semantic Parser 结果）优先
         1. 当前输入明确商品名 → resolve_product 直接匹配
         2. 当前输入无商品 → 尝试从 history 推断商品
-        3. 商品确定 → 检测 query_type → 从字段构建回复
-        4. 字段缺失 → 提示资料未录入
-        5. 完全无匹配 → 澄清或 fallback
+        3. 商品确定 → state.query_type 优先，否则 _detect_query_type
+        4. 从字段构建回复
+        5. 字段缺失 → 提示资料未录入
+        6. 完全无匹配 → 澄清或 fallback
     """
     text = state.get("user_message", "") or ""
     history = state.get("conversation_history", [])
+    query_type = state.get("query_type") or _detect_query_type(text)
+
+    # ── 第 0 步：LLM Semantic Parser 输出的 explicit_product ──
+    product = None
+    explicit = state.get("explicit_product")
+    if explicit:
+        pr = resolve_product(explicit)
+        if pr.get("matched"):
+            product = pr["matched_product"]
 
     # ── 第 1 步：当前输入明确商品 ──
-    result = resolve_product(text)
-    product = result.get("matched_product")
+    if not product:
+        result = resolve_product(text)
+        product = result.get("matched_product")
+
     used_history = False
 
     # ── 第 2 步：当前无商品，尝试 history ──
@@ -189,7 +202,6 @@ def run_product_qa_skill(state: dict) -> dict:
 
     # ── 第 3 步：无商品匹配 → 尝试 FAQ，再澄清 ──
     if not product:
-        # 尝试 FAQ
         intent = state.get("intent")
         faq_result = query_faq(text, intent)
         if faq_result.get("matched"):
@@ -201,13 +213,9 @@ def run_product_qa_skill(state: dict) -> dict:
                     "message": faq_result["matched_faq"]["answer"],
                 }
             }
-        # 仍无匹配 → 澄清
         return _needs_clarification()
 
-    # ── 第 4 步：商品确定，检测问题类型 ──
-    query_type = _detect_query_type(text)
-
-    # ── 第 5 步：构建回复 ──
+    # ── 第 4 步：构建回复 ──
     message = _build_reply(product, query_type)
 
     return {
