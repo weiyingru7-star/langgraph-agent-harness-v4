@@ -6,6 +6,7 @@ chat_api.py — 聊天 API 路由。
 """
 
 from app.graph import run_graph
+from app.persistence import sqlite_store
 from app.schemas.chat_schema import ChatRequest, ChatResponse, HealthResponse
 from app.state.customer_state import create_initial_state
 
@@ -17,6 +18,7 @@ def handle_chat(req: ChatRequest) -> ChatResponse:
     1. 创建 initial_state
     2. 调用 run_graph
     3. 提取关键字段返回
+    4. 异步持久化（失败不影响回复）
     """
     try:
         initial = create_initial_state(
@@ -51,5 +53,31 @@ def handle_chat(req: ChatRequest) -> ChatResponse:
 
     if req.return_full_state:
         resp.state = dict(state)
+
+    # ── 持久化（失败不影响 Agent 回复） ──
+    persist_errors = []
+
+    try:
+        sqlite_store.save_message(req.session_id, "user", req.user_message, req.image_url)
+    except Exception as e:
+        persist_errors.append(f"保存用户消息失败: {e}")
+
+    try:
+        sqlite_store.save_message(req.session_id, "assistant", state.get("reply", ""))
+    except Exception as e:
+        persist_errors.append(f"保存回复失败: {e}")
+
+    try:
+        sqlite_store.save_agent_run(state)
+    except Exception as e:
+        persist_errors.append(f"保存 Agent 运行记录失败: {e}")
+
+    try:
+        sqlite_store.save_handoff_if_needed(state)
+    except Exception as e:
+        persist_errors.append(f"保存转人工记录失败: {e}")
+
+    if persist_errors:
+        resp.errors.extend(persist_errors)
 
     return resp
