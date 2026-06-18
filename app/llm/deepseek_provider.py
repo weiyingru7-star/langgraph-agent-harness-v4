@@ -168,6 +168,76 @@ class DeepSeekProvider(BaseLLMProvider):
             parts.append(f"--- {c['source_file']} ---\n{c['text']}")
         return "\n".join(parts)
 
+    def parse_semantic(self, payload: dict) -> dict:
+        """语义解析。"""
+        if not self.api_key:
+            return {"intent": "unknown", "explicit_product": None, "query_type": "unknown", "use_history": False, "confidence": 0.0, "provider": "deepseek", "success": False, "error": "missing_api_key"}
+
+        tools_list = []
+        for p in payload.get("available_products", []):
+            tools_list.append(f"  - {p.get('name', '')}")
+            for a in p.get("aliases", []):
+                tools_list.append(f"    alias: {a}")
+
+        prompt = f"""## 用户输入
+{payload.get('user_message', '')}
+
+## 可识别商品
+{chr(10).join(tools_list) if tools_list else '  暂无'}
+
+## 规则 intent
+{payload.get('rule_intent', 'unknown')}
+
+## 对话历史
+"""
+        history = payload.get("conversation_history", [])
+        for msg in history[-4:]:
+            prompt += f"{msg.get('role', '?')}: {msg.get('content', '')}\n"
+
+        try:
+            response = httpx.post(
+                f"{self.base_url}/v1/chat/completions",
+                headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
+                json={
+                    "model": self.model,
+                    "messages": [
+                        {"role": "system", "content": "你是一个电商客服语义理解助手。你只能基于用户输入和对话历史做语义分析。输出必须是以下 JSON 格式：{\"intent\": \"...\", \"explicit_product\": \"...\" or null, \"query_type\": \"...\", \"use_history\": true/false, \"user_signal\": \"...\", \"confidence\": 0.0, \"reason\": \"...\"}。不得编造。不得将退款/投诉/转人工请求降级为闲聊。"},
+                        {"role": "user", "content": prompt},
+                    ],
+                    "temperature": 0.1,
+                    "max_tokens": 512,
+                },
+                timeout=self.timeout,
+            )
+            response.raise_for_status()
+            data = response.json()
+            content = data.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+            if not content:
+                return {"intent": "unknown", "explicit_product": None, "query_type": "unknown", "use_history": False, "confidence": 0.0, "provider": "deepseek", "success": False, "error": "empty"}
+            parsed = self._parse_rag_reply(content, [])
+            if parsed and "reply" in parsed:
+                try:
+                    import json as _j
+                    d2 = _j.loads(content)
+                    return {
+                        "intent": d2.get("intent", "unknown"),
+                        "explicit_product": d2.get("explicit_product"),
+                        "query_type": d2.get("query_type", "unknown"),
+                        "use_history": d2.get("use_history", False),
+                        "user_signal": d2.get("user_signal", "unknown"),
+                        "confidence": d2.get("confidence", 0.0),
+                        "reason": d2.get("reason", ""),
+                        "provider": "deepseek",
+                        "success": True,
+                    }
+                except Exception:
+                    pass
+            return {"intent": "unknown", "explicit_product": None, "query_type": "unknown", "use_history": False, "confidence": 0.0, "provider": "deepseek", "success": False, "error": "parse_failed"}
+        except httpx.TimeoutException:
+            return {"intent": "unknown", "explicit_product": None, "query_type": "unknown", "use_history": False, "confidence": 0.0, "provider": "deepseek", "success": False, "error": "timeout"}
+        except Exception as e:
+            return {"intent": "unknown", "explicit_product": None, "query_type": "unknown", "use_history": False, "confidence": 0.0, "provider": "deepseek", "success": False, "error": str(e)}
+
     def _parse_rag_reply(self, content: str, chunks: list) -> dict | None:
         """解析 RAG 回答 JSON。"""
         try:

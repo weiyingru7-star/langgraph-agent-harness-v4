@@ -38,3 +38,19 @@ class BaseLLMProvider(ABC):
             或 {"error": str}
         """
         raise NotImplementedError("generate_rag_answer not implemented")
+
+    def parse_semantic(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        语义解析。
+
+        Args:
+            payload: 包含 user_message, conversation_history,
+                     available_products, safety_rules 等
+
+        Returns:
+            {"intent": str, "explicit_product": str|null, "query_type": str,
+             "use_history": bool, "confidence": float,
+             "provider": str, "success": bool}
+            或 {"error": str}
+        """
+        raise NotImplementedError("parse_semantic not implemented")
