@@ -1,8 +1,9 @@
 """
-mock_order_tool.py — 订单查询 Mock（Legacy）
+mock_order_tool.py — 订单查询 Mock（Demo Provider）
 
-⚠️ 此文件是 legacy mock，仅用于 logistics_skill。
-主要数据来源为硬编码示例数据。后续可迁移到真实物流 API 或本地 JSON。
+⚠️ 此文件是 demo/mock 数据提供者，用于 logistics_skill。
+仍被 demo 链路使用，不可直接删除。
+后续可迁移到真实物流 API 或本地 JSON。
 """
 
 

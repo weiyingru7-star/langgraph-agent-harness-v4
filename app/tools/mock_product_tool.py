@@ -1,9 +1,10 @@
 """
-mock_product_tool.py — 商品查询 Mock（Legacy）
+mock_product_tool.py — 商品查询 Mock（Demo Provider）
 
-⚠️ 此文件是 legacy mock，仅用于 product_qa_skill / recommendation_skill 的回退兜底。
+⚠️ 此文件是 demo/mock 数据提供者，用于 product_qa_skill / recommendation_skill 的回退兜底。
+仍被 demo/fallback 链路使用，不可直接删除。
 主要商品数据来源已迁移到 data/products.json（local_product_tool）。
-新功能请使用 local_product_tool，不要扩展此文件。
+新功能请使用 local_product_tool，后续接入真实商品 API 后可逐步替换。
 """
 
 

@@ -1,8 +1,9 @@
 """
-mock_multimodal_tool.py — Mock 多模态分析工具（Legacy）
+mock_multimodal_tool.py — Mock 多模态分析工具（Demo Provider）
 
-⚠️ 此文件是 legacy mock，仅用于 analyze_multimodal 节点的 Phase 7 测试。
-纯图片场景目前走 image_clarification，不调用此工具。
+⚠️ 此文件是 demo/mock 数据提供者，用于 analyze_multimodal 节点。
+仍被 demo 链路使用，不可直接删除。
+纯图片场景走 image_clarification，不调用此工具。
 """
 
 
