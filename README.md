@@ -207,7 +207,7 @@ cd ~/langgraph-agent-harness-v4
 docker compose up --build
 ```
 
-浏览器打开 **http://localhost:3000**。后端 API 在 `http://localhost:8003`。
+浏览器打开 **http://localhost:3001**。后端 API 在 `http://localhost:8003`。
 
 传入 DeepSeek API Key（可选）：
 

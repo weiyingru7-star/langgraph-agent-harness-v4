@@ -28,7 +28,7 @@ services:
     build:
       context: apps/web-next
     ports:
-      - "3000:3000"
+      - "3001:3000"
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:8003
     depends_on:
