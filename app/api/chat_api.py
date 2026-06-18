@@ -16,9 +16,10 @@ def handle_chat(req: ChatRequest) -> ChatResponse:
     处理聊天请求。
 
     1. 创建 initial_state
-    2. 调用 run_graph
-    3. 提取关键字段返回
-    4. 异步持久化（失败不影响回复）
+    2. Context Loader: 读取历史消息写入 state
+    3. 调用 run_graph
+    4. 提取关键字段返回
+    5. 持久化（失败不影响回复）
     """
     try:
         initial = create_initial_state(
@@ -27,6 +28,19 @@ def handle_chat(req: ChatRequest) -> ChatResponse:
             image_url=req.image_url,
             image_base64=req.image_base64,
         )
+
+        # ── Context Loader：从 SQLite 读取历史消息 ──
+        try:
+            history = sqlite_store.get_messages(req.session_id, limit=10)
+            if history:
+                cleaned = [
+                    {"role": m["role"], "content": m["content"]}
+                    for m in history
+                ]
+                initial["conversation_history"] = cleaned
+        except Exception as e:
+            print(f"[context_loader] 读取历史失败: {e}")
+
         state = run_graph(initial)
     except Exception as e:
         return ChatResponse(

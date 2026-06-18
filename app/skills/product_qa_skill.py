@@ -86,9 +86,52 @@ def _mock_fallback_reply(text: str) -> dict:
     }
 
 
+# 追问关键词列表
+_FOLLOWUP_KEYWORDS = [
+    "码数", "尺码", "码", "大小", "尺寸",
+    "适合吗", "能穿吗", "能穿",
+    "怎么洗", "怎么穿", "保养", "清洗",
+    "还有别的吗", "还有什么",
+    "这个呢", "那款呢", "那款",
+    "什么颜色", "黑色", "颜色",
+    "多少钱", "价格", "价位", "贵",
+    "怎么用", "怎么安装",
+]
+
+# 本地商品名称列表（用于从历史中匹配）
+_KNOWN_PRODUCTS = ["UPF50+ 轻薄防晒衣", "轻量运动外套", "可折叠遮阳帽"]
+
+
+def _find_product_in_history(history: list) -> str | None:
+    """从对话历史中查找最后一次提到的商品名。"""
+    for msg in reversed(history):
+        if msg.get("role") == "assistant":
+            content = msg.get("content", "")
+            for name in _KNOWN_PRODUCTS:
+                if name in content:
+                    return name
+    return None
+
+
+def _enrich_text_with_history(text: str, state: dict) -> str:
+    """如果当前问题是追问，从历史中获取商品名增强文本。"""
+    if not any(kw in text for kw in _FOLLOWUP_KEYWORDS):
+        return text
+    history = state.get("conversation_history", [])
+    if not history:
+        return text
+    product_name = _find_product_in_history(history)
+    if product_name:
+        return f"{product_name} {text}"
+    return text
+
+
 def run_product_qa_skill(state: dict) -> dict:
     """执行商品问答，优先从本地知识库查询。"""
     text = state.get("user_message", "") or ""
+
+    # 如果是追问，用历史增强文本
+    text = _enrich_text_with_history(text, state)
 
     # 1. 查 FAQ
     intent = state.get("intent")
