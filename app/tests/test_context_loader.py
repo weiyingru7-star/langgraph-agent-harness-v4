@@ -295,3 +295,60 @@ class TestExplicitProductPriority:
         s = run_graph(initial)
         assert s["selected_skill"] == "refund_skill"
         assert s["policy_decision"] == "retention"
+
+
+class TestComprehensiveProductQA:
+    """商品问答全场景验证。"""
+
+    def test_exact_product_size(self):
+        """"轻量运动外套有什么码数" → 回答运动外套尺码。"""
+        history = [
+            {"role": "user", "content": "有没有推荐"},
+            {"role": "assistant", "content": "推荐：UPF50+ 轻薄防晒衣、轻量运动外套、可折叠遮阳帽"},
+        ]
+        initial = create_initial_state(
+            session_id="cmp-size", user_message="轻量运动外套有什么码数",
+        )
+        initial["conversation_history"] = history
+        s = run_graph(initial)
+        r = s["reply"] or ""
+        assert "M" in r and "XL" in r  # 运动外套尺码
+        assert "UPF50+" not in r and "防晒" not in r
+
+    def test_no_history_faq(self):
+        """"有什么尺码" 无历史时返回通用尺码 FAQ（不崩溃、不乱答材质）。"""
+        s = run_graph(create_initial_state(
+            session_id="cmp-noh", user_message="有什么尺码",
+        ))
+        r = s["reply"] or ""
+        assert "尺码" in r or "码" in r or "S" in r or "M" in r
+        assert "锦纶" not in r  # 不应回复材质
+
+    def test_third_round_followup(self):
+        """第三轮"有什么尺码"，从历史推断上一轮的商品。"""
+        initial = create_initial_state(
+            session_id="cmp-3rd", user_message="有什么尺码",
+        )
+        initial["conversation_history"] = [
+            {"role": "user", "content": "有没有推荐"},
+            {"role": "assistant", "content": "推荐：轻量运动外套（M/L/XL/XXL）、UPF50+防晒衣"},
+            {"role": "user", "content": "轻量运动外套有什么码数"},
+            {"role": "assistant", "content": "这款轻量运动外套的尺码为 M/L/XL/XXL"},
+        ]
+        s = run_graph(initial)
+        r = s["reply"] or ""
+        # 应该继续问上一轮的商品信息，不应回退到防晒衣
+        assert "M" in r or "XL" in r or "尺码" in r
+
+    def test_exact_product_material(self):
+        """"运动外套是什么材质" → 回答聚酯纤维，非锦纶。"""
+        initial = create_initial_state(
+            session_id="cmp-mat", user_message="运动外套是什么材质",
+        )
+        initial["conversation_history"] = [
+            {"role": "assistant", "content": "这款 UPF50+ 轻薄防晒衣的材质信息"},
+        ]
+        s = run_graph(initial)
+        r = s["reply"] or ""
+        assert "聚酯纤维" in r  # 运动外套材质
+        assert "锦纶" not in r  # 不是防晒衣材质
