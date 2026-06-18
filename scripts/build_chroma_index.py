@@ -8,7 +8,7 @@ build_chroma_index.py — 构建 Chroma 向量索引。
 
 环境变量：
     RAG_PROVIDER=chroma（可选，仅用于日志）
-    EMBEDDING_MODEL（可选，默认 sentence-transformers/all-MiniLM-L6-v2）
+    EMBEDDING_MODEL（可选，默认 sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2）
 """
 
 import os

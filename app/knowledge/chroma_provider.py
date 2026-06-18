@@ -13,7 +13,7 @@ from app.knowledge.chunker import chunk_documents
 from app.knowledge.document_loader import load_documents
 
 _CHROMA_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "data", "chroma"))
-_EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+_EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
 
 
 class ChromaProvider:
