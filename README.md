@@ -369,3 +369,26 @@ langgraph-agent-harness-v4/
 | [docs/HYBRID_RAG_DESIGN.md](docs/HYBRID_RAG_DESIGN.md) | 混合 RAG 设计 |
 | [docs/SQLITE_PERSISTENCE_DESIGN.md](docs/SQLITE_PERSISTENCE_DESIGN.md) | SQLite 持久化设计 |
 | [docs/EVAL_GUIDE.md](docs/EVAL_GUIDE.md) | Agent Eval 测试集 |
+
+---
+
+## Eval Test Suite
+
+本仓库包含一套轻量端到端 Eval 测试集，用于验证 Agent 的意图识别、商品问答、RAG 检索、安全边界和回复质量。
+
+**快速运行：**
+```bash
+.venv/bin/python scripts/run_eval.py
+```
+
+**当前状态（Mock Baseline）：**
+- `evals/test_cases.jsonl` — 25 条固定测试用例
+- 覆盖：商品问答、多轮上下文、RAG 知识库、安全边界、无资料兜底、物流、图片模态
+- 通过率：**19/25 (76%)**
+- 剩余 6 条依赖 LLM Semantic Parser（启用 `LLM_PROVIDER=deepseek` 后可通过）
+
+**Eval 边界：**
+- Eval 是额外质量评估，**不替代**单元测试（`app/tests/`）
+- 默认使用 mock LLM + TF-IDF RAG，**零外部依赖**
+- 生成的 `eval_report.json` **不提交** GitHub（已在 `.gitignore` 中排除）
+- 详细说明见 [docs/EVAL_GUIDE.md](docs/EVAL_GUIDE.md)

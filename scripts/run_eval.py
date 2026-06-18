@@ -283,6 +283,26 @@ def main():
         json.dump(report, f, ensure_ascii=False, indent=2)
         print(f"\n详细报告已写入: {args.output}")
 
+    # 模式提示
+    llm_provider = os.getenv("LLM_PROVIDER", "mock")
+    semantic_parser = os.getenv("LLM_ENABLE_SEMANTIC_PARSER", "false")
+    failed = report["summary"]["failed"]
+    if llm_provider == "mock" and failed > 0:
+        failed_ids = [r["id"] for r in report["results"] if not r["pass"]]
+        print()
+        print(f"💡 当前模式: Mock Baseline（LLM_PROVIDER=mock, Semantic Parser=关闭）")
+        print(f"   失败 {failed} 条: {', '.join(failed_ids)}")
+        print(f"   部分用例依赖 LLM Semantic Parser 理解自然语言上下文。")
+        print(f"   如需 Full Eval，可配置 .env 后运行:")
+        print(f"     LLM_PROVIDER=deepseek LLM_ENABLE_SEMANTIC_PARSER=true "
+              f".venv/bin/python scripts/run_eval.py")
+    elif llm_provider == "deepseek":
+        print()
+        print(f"💡 当前模式: Full LLM（LLM_PROVIDER=deepseek）")
+        if failed > 0:
+            failed_ids = [r["id"] for r in report["results"] if not r["pass"]]
+            print(f"   失败 {failed} 条 — 请检查用例或模型响应")
+
     # 退出码：全部通过返回 0，有失败返回 1
     sys.exit(0 if report["summary"]["failed"] == 0 else 1)
 
