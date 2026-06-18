@@ -346,8 +346,9 @@ langgraph-agent-harness-v4/
 │   └── tests/                 # 219 个 pytest
 ├── apps/web-next/             # Next.js 前端 Demo
 ├── data/                      # 商品 JSON + FAQ + RAG 文档
-├── knowledge/raw/             # RAG 原始文档
 ├── docs/                      # 设计文档
+├── evals/                     # Eval 测试集（test_cases.jsonl + 报告输出）
+├── scripts/                   # 工具脚本（build_chroma_index.py, run_eval.py）
 ├── requirements.txt
 ├── CLAUDE.md
 └── README.md
@@ -367,3 +368,4 @@ langgraph-agent-harness-v4/
 | [docs/LLM_PROVIDER_DESIGN.md](docs/LLM_PROVIDER_DESIGN.md) | LLM Provider 设计 |
 | [docs/HYBRID_RAG_DESIGN.md](docs/HYBRID_RAG_DESIGN.md) | 混合 RAG 设计 |
 | [docs/SQLITE_PERSISTENCE_DESIGN.md](docs/SQLITE_PERSISTENCE_DESIGN.md) | SQLite 持久化设计 |
+| [docs/EVAL_GUIDE.md](docs/EVAL_GUIDE.md) | Agent Eval 测试集 |

@@ -31,3 +31,4 @@ local_notes/
 # But keep data JSON/MD files
 !data/*.json
 !data/*.md
+eval_report.json
